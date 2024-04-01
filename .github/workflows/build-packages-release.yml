@@ -1,4 +1,4 @@
-name: OpenWRT Packages Build Bot
+name: ImmortalWrt Packages Build Bot
 on:
   push:
     branches: 
@@ -19,26 +19,18 @@ on:
 
 jobs:
   buildpkg:
-    name: Build OpenWRT Packages
+    name: Build ImmortalWrt Packages
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch:
-          - x86_64-23.05.3
-          - aarch64_generic-23.05.3
+          - x86_64-23.05.2
+          - aarch64_generic-23.05.2
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
-      - name: Cache artifacts
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/build_dir
-          key: ${{ matrix.arch }}-build_dir
           
       - name: Prepare feeds
         run: |
@@ -54,7 +46,7 @@ jobs:
           find . -name "Makefile" -type f -exec cat {} \;
 
       - name: Build
-        uses: MyWRT/gh-action-sdk@main
+        uses: immortalwrt/gh-action-sdk@master
         env:
           ARCH: ${{ matrix.arch }}
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
@@ -62,11 +54,10 @@ jobs:
           IGNORE_ERRORS: n m y
           BUILD_LOG: "1"
           NO_SHFMT_CHECK: "1"
+          NO_REFRESH_CHECK: "1"
           PACKAGES: ${{ env.PACKAGES }}
           FEEDNAME: "mywrt"
           ARTIFACTS_DIR: "${{ github.workspace }}/artifacts"
-          BUILD_DIR: "${{ github.workspace }}/build_dir"
-
 
       - name: List files
         run: |
@@ -85,7 +76,7 @@ jobs:
       - name: Upload feed to Google Drive
         uses: andreiio/rclone-action@v1
         with:
-          args: copy "artifacts/bin/packages" "gd:MyWRTBuilder/packages"
+          args: copy "artifacts/bin/packages" "gd:ImmortalWrtBuilder/packages"
         env:
           RCLONE_CONFIG_GD_TYPE: drive
           RCLONE_CONFIG_GD_SCOPE: drive

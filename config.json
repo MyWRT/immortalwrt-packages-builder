@@ -1,114 +1,10 @@
 [
     {
-        "URL": "https://github.com/immortalwrt/luci.git",
-        "branch": "openwrt-23.05",
-        "subdir": [
-            {
-                "dir": "applications/luci-app-gost"
-            },
-            {
-                "dir": "applications/luci-app-homeproxy"
-            },
-            {
-                "dir": "applications/luci-app-filebrowser"
-            },
-            {
-                "dir": "applications/luci-app-usb-printer"
-            },
-            {
-                "dir": "applications/luci-app-zerotier"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/immortalwrt/immortalwrt.git",
-        "branch": "openwrt-23.05",
-        "subdir": [
-            {
-                "dir": "package/network/config/firewall4"
-            },
-            {
-                "dir": "package/libs/libnftnl"
-            },
-            {
-                "dir": "package/network/utils/nftables"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/openwrt/packages.git",
-        "subdir": [
-            {
-                "dir": "lang/golang"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/kiddin9/luci-app-dnsfilter.git"
-    },
-    {
-        "URL": "https://github.com/tty228/luci-app-wechatpush.git",
-        "branch": "master"
-    },
-    {
-        "URL": "https://github.com/jerrykuku/luci-theme-argon.git"
-    },
-    {
-        "URL": "https://github.com/jerrykuku/luci-app-argon-config.git"
-    },
-    {
-        "URL": "https://github.com/kenzok78/luci-app-adguardhome.git"
-    },
-    {
         "URL": "https://github.com/papagaye744/luci-theme-design.git",
         "branch": "js"
     },
     {
         "URL": "https://github.com/gngpp/luci-app-design-config.git"
-    },
-    {
-        "URL": "https://github.com/pymumu/luci-app-smartdns.git",
-        "branch": "master"
-    },
-    {
-        "URL": "https://github.com/pymumu/openwrt-smartdns.git",
-        "subdir": [
-            {
-                "dir": ".",
-                "rename_to": "smartdns"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/UnblockNeteaseMusic/luci-app-unblockneteasemusic.git",
-        "branch": "js"
-    },
-    {
-        "URL": "https://github.com/lisaac/luci-app-dockerman.git",
-        "subdir": [
-            {
-                "dir": "applications/luci-app-dockerman"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/vernesong/OpenClash.git",
-        "subdir": [
-            {
-                "dir": "luci-app-openclash"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/sirpdboy/luci-app-ddns-go.git",
-        "subdir": [
-            {
-                "dir": "ddns-go"
-            },
-            {
-                "dir": "luci-app-ddns-go"
-            }
-        ]
     },
     {
         "URL": "https://github.com/sbwml/luci-app-mosdns.git",
@@ -120,20 +16,6 @@
                 "dir": "v2dat"
             }
         ]
-    },
-    {
-        "URL": "https://github.com/sbwml/luci-app-alist.git",
-        "subdir": [
-            {
-                "dir": "luci-app-alist"
-            },
-            {
-                "dir": "alist"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/immortalwrt/homeproxy.git"
     },
     {
         "URL": "https://github.com/muink/luci-app-natmapt.git"
@@ -157,68 +39,6 @@
         ]
     },
     {
-        "URL": "https://github.com/kenzok8/wall.git",
-        "subdir": [
-            {
-                "dir": "UnblockNeteaseMusic"
-            },
-            {
-                "dir": "dns2socks"
-            },
-            {
-                "dir": "dns2tcp"
-            },
-            {
-                "dir": "adguardhome"
-            },
-            {
-                "dir": "filebrowser"
-            },
-            {
-                "dir": "gost"
-            },
-            {
-                "dir": "hysteria"
-            },
-            {
-                "dir": "pdnsd-alt"
-            },
-            {
-                "dir": "shadowsocks-rust"
-            },
-            {
-                "dir": "shadowsocksr-libev"
-            },
-            {
-                "dir": "simple-obfs"
-            },
-            {
-                "dir": "sing-box"
-            },
-            {
-                "dir": "tcping"
-            },
-            {
-                "dir": "xray-core"
-            },
-            {
-                "dir": "xray-plugin"
-            },
-            {
-                "dir": "v2ray-core"
-            },
-            {
-                "dir": "v2ray-plugin"
-            },
-            {
-                "dir": "mosdns"
-            },
-            {
-                "dir": "chinadns-ng"
-            }
-        ]
-    },
-    {
         "URL": "https://github.com/chenmozhijin/turboacc.git",
         "branch": "luci",
         "subdir": [
@@ -226,27 +46,6 @@
                 "dir": "luci-app-turboacc"
             }
         ]
-    },
-    {
-        "URL": "https://github.com/chenmozhijin/turboacc.git",
-        "branch": "package",
-        "subdir": [
-            {
-                "dir": "nft-fullcone"
-            },
-            {
-                "dir": "shortcut-fe/fast-classifier"
-            },
-            {
-                "dir": "shortcut-fe/shortcut-fe"
-            },
-            {
-                "dir": "shortcut-fe/simulated-driver"
-            }
-        ]
-    },
-    {
-        "URL": "https://github.com/muink/luci-app-netdata.git"
     },
     {
         "URL": "https://github.com/xiaorouji/openwrt-passwall2.git",
