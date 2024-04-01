@@ -13,6 +13,9 @@
                 "dir": "luci-app-mosdns"
             },
             {
+                "dir": "mosdns"
+            },
+            {
                 "dir": "v2dat"
             }
         ]
