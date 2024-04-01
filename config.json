@@ -7,16 +7,10 @@
         "URL": "https://github.com/gngpp/luci-app-design-config.git"
     },
     {
-        "URL": "https://github.com/sbwml/luci-app-mosdns.git",
+        "URL": "https://github.com/ophub/luci-app-amlogic.git",
         "subdir": [
             {
-                "dir": "luci-app-mosdns"
-            },
-            {
-                "dir": "mosdns"
-            },
-            {
-                "dir": "v2dat"
+                "dir": "luci-app-amlogic"
             }
         ]
     },
