@@ -57,11 +57,10 @@ jobs:
           NO_REFRESH_CHECK: "1"
           PACKAGES: ${{ env.PACKAGES }}
           FEEDNAME: "mywrt"
-          ARTIFACTS_DIR: "${{ github.workspace }}/artifacts"
 
       - name: List files
         run: |
-          ls -R artifacts/bin/
+          ls -R bin/
 
       # - name: Upload feed
       #   uses: Pendect/action-rsyncer@8e05ffa5c93e5d9c9b167796b26044d2c616b2b9
@@ -76,7 +75,7 @@ jobs:
       - name: Upload feed to Google Drive
         uses: andreiio/rclone-action@v1
         with:
-          args: copy "artifacts/bin/packages" "gd:ImmortalWrtBuilder/packages"
+          args: copy "bin/packages" "gd:ImmortalWrtBuilder/packages"
         env:
           RCLONE_CONFIG_GD_TYPE: drive
           RCLONE_CONFIG_GD_SCOPE: drive
