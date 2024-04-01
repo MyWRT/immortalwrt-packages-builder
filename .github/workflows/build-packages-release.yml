@@ -57,6 +57,7 @@ jobs:
           NO_REFRESH_CHECK: "1"
           PACKAGES: ${{ env.PACKAGES }}
           FEEDNAME: "mywrt"
+          V: "s"
 
       - name: List files
         run: |
