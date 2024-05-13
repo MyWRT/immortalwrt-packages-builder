@@ -51,5 +51,14 @@
                 "dir": "luci-app-passwall2"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/etnperlong/openwrt-asterisk-chan-quectel.git",
+        "subdir": [
+            {
+                "dir": ".",
+                "rename_to": "asterisk-chan-quectel"
+            }
+        ]
     }
 ]
