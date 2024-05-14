@@ -51,7 +51,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
           INDEX: "1"
-          IGNORE_ERRORS: n m y
+          IGNORE_ERRORS: "1"
           BUILD_LOG: "1"
           NO_SHFMT_CHECK: "1"
           NO_REFRESH_CHECK: "1"
