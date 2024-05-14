@@ -60,5 +60,19 @@
                 "rename_to": "asterisk-chan-quectel"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/kenzok8/jell.git",
+        "subdir": [
+            {
+                "dir": "luci-app-frpc"
+            },
+            {
+                "dir": "luci-app-frps"
+            },
+            {
+                "dir": "frp"
+            }
+        ]
     }
 ]
