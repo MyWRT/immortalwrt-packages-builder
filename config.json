@@ -71,5 +71,13 @@
                 "dir": "luci-app-frps"
             }
         ]
-    }
+    },
+	{
+		"URL": "https://github.com/MyWRT/AirSane-openwrt.git",
+		"subdir": [
+            {
+                "dir": "airsaned"
+            }
+        ]
+	}
 ]
