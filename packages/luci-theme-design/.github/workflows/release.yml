@@ -14,8 +14,9 @@ on:
         type: choice
         options:
         - 21.02.7
-        - 22.03.6
-        - 23.05.2
+        - 22.03.7
+        - 23.05.6
+        - 24.10.4
       upload_artifact:
         description: '是否上传到Artifact'
         required: false
@@ -29,7 +30,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
 
       - name: Initialization Environment
@@ -49,8 +50,9 @@ jobs:
         run: |
           declare -A sdkMap=()
           sdkMap["21.02.7"]="openwrt-sdk-21.02.7-x86-64_gcc-8.4.0_musl"
-          sdkMap["22.03.6"]="openwrt-sdk-22.03.6-x86-64_gcc-11.2.0_musl"
-          sdkMap["23.05.2"]="openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl"
+          sdkMap["22.03.7"]="openwrt-sdk-22.03.7-x86-64_gcc-11.2.0_musl"
+          sdkMap["23.05.6"]="openwrt-sdk-23.05.6-x86-64_gcc-12.3.0_musl"
+          sdkMap["24.10.4"]="openwrt-sdk-24.10.4-x86-64_gcc-13.3.0_musl"
           SDK=${sdkMap["${{ inputs.sdk_version }}"]}
           echo "USE SDK=$SDK"
           wget https://archive.openwrt.org/releases/${{ inputs.sdk_version }}/targets/x86/64/$SDK.Linux-x86_64.tar.xz
@@ -62,7 +64,7 @@ jobs:
         id: build
         run: | 
           cd openwrt-sdk
-          git clone  --depth=1 -b "${{ github.ref_name }}" https://github.com/gngpp/luci-theme-design.git package/luci-theme-design
+          git clone  --depth=1 -b "${{ github.ref_name }}" https://github.com/papagaye744/luci-theme-design.git package/luci-theme-design
           ./scripts/feeds update -a && ./scripts/feeds install -a
           echo "CONFIG_PACKAGE_luci-theme-design=y" >> .config
           make defconfig
@@ -91,7 +93,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: steps.build.outputs.status == 'success' && github.event.inputs.upload_release == 'true' && !cancelled()
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           name: ${{ steps.tag.outputs.tag }}
           tag_name: ${{ steps.tag.outputs.tag }}
