@@ -10,7 +10,7 @@ on:
       sdk_version:
         description: '编译SDK版本'     
         required: true
-        default: '21.02.7' 
+        default: '23.05.6' 
         type: choice
         options:
         - 21.02.7
