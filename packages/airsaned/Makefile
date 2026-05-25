@@ -5,10 +5,10 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/SimulPiscator/AirSane.git
-PKG_SOURCE_VERSION:=e129c7d43ccd644d6156a5c2454b6ff50bccdb46
-PKG_SOURCE_DATE:=2024-05-10
-PKG_VERSION:=$(PKG_SOURCE_DATE)-$(PKG_SOURCE_VERSION)
-PKG_MIRROR_HASH:=51d98b1a123264a6bc5cc9c5951a6de63b3ca97cd4bc61a52e1dd25bda2fb61e
+PKG_SOURCE_VERSION:=32c1364bcf056ea623af306c230634fd97f3a5e8
+PKG_SOURCE_DATE:=2024-09-29
+PKG_VERSION:=0.4.3
+PKG_MIRROR_HASH:=skip
 
 PKG_MAINTAINER:=SimulPiscator <example@example.com>
 PKG_LICENSE:=GPL-3.0
@@ -26,7 +26,7 @@ define Package/airsaned
   URL:=https://github.com/SimulPiscator/AirSane
   SECTION:=utils
   CATEGORY:=Utilities
-  DEPENDS:=+libsane +libjpeg +libpng +libavahi-client +libusb-1.0 +libstdcpp
+  DEPENDS:=+libsane +libjpeg +libpng +libavahi-client +libusb-1.0 +libstdcpp +libatomic
 endef
 
 define Package/airsaned/description
