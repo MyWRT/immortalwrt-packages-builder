@@ -61,6 +61,50 @@ jobs:
           FEEDNAME: "mywrt"
           V: "s"
 
+      - name: Report ignored package build errors
+        if: always()
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          error_files=(logs/**/error.txt)
+
+          if (( ${#error_files[@]} == 0 )); then
+            echo "No ignored package build errors were recorded."
+            exit 0
+          fi
+
+          escape_github_command() {
+            local value="$1"
+            value="${value//'%'/'%25'}"
+            value="${value//$'\r'/'%0D'}"
+            value="${value//$'\n'/'%0A'}"
+            printf '%s' "$value"
+          }
+
+          {
+            echo "### Ignored package build errors"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for file in "${error_files[@]}"; do
+            while IFS= read -r line || [[ -n "$line" ]]; do
+              [[ -n "$line" ]] || continue
+
+              escaped="$(escape_github_command "$line")"
+              printf '::warning::%s\n' "$escaped"
+              printf -- '- `%s`: `%s`\n' "$file" "$line" >> "$GITHUB_STEP_SUMMARY"
+            done < "$file"
+          done
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-${{ env.SDK_ARCH }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 7
+
       # - name: List files
       #   run: |
       #     ls -R bin/
