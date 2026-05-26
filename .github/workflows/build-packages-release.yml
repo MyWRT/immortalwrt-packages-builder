@@ -127,10 +127,59 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  release:
-    name: Release
+  release_dropbox:
+    name: Release to Dropbox
     needs: build
     runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      actions: read
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Set up Rclone
+        uses: AnimMouse/setup-rclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Upload Packages to Dropbox
+        run: rclone copy "dist" "dropbox:mywrt-dist" --transfers 10 --tpslimit 12 --dropbox-batch-mode async --retries 5 --low-level-retries 10
+
+  release_r2:
+    name: Release to Cloudflare R2
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      actions: read
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Set up Rclone
+        uses: AnimMouse/setup-rclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Upload Packages to Cloudflare R2
+        run: rclone copy "dist" "r2:mywrt-dist"
+
+  release_github:
+    name: Release to GitHub Releases
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       actions: read
       contents: write
@@ -145,14 +194,6 @@ jobs:
           pattern: packages-*
           path: dist
           merge-multiple: true
-
-      - name: Set up Rclone
-        uses: AnimMouse/setup-rclone@v1
-        with:
-          rclone_config: ${{ secrets.RCLONE_CONFIG }}
-
-      - name: Upload Packages to Rclone remote
-        run: rclone copy "dist" "remote:ImmortalWRT"
 
       - name: Upload Packages to GitHub Releases
         shell: bash
