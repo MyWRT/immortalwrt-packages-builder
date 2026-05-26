@@ -45,12 +45,58 @@
         ]
     },
     {
-        "URL": "https://github.com/xiaorouji/openwrt-passwall2.git",
+        "URL": "https://github.com/chenmozhijin/turboacc.git",
+        "branch": "package",
+        "subdir": [
+            {
+                "dir": "nft-fullcone"
+            },
+            {
+                "dir": "shortcut-fe/fast-classifier"
+            },
+            {
+                "dir": "shortcut-fe/shortcut-fe"
+            },
+            {
+                "dir": "shortcut-fe/simulated-driver"
+            }
+        ]
+    },
+    {
+        "URL": "https://github.com/Openwrt-Passwall/openwrt-passwall2.git",
         "subdir": [
             {
                 "dir": "luci-app-passwall2"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/sbwml/luci-app-mosdns.git",
+        "subdir": [
+            {
+                "dir": "luci-app-mosdns"
+            },
+            {
+                "dir": "v2dat"
+            },
+            {
+                "dir": "mosdns"
+            }
+        ]
+    },
+    {
+        "URL": "https://github.com/vernesong/OpenClash.git",
+        "subdir": [
+            {
+                "dir": "luci-app-openclash"
+            }
+        ]
+    },
+    {
+        "URL": "https://github.com/tty228/luci-app-wechatpush.git"
+    },
+    {
+        "URL": "https://github.com/kenzok78/luci-app-adguardhome"
     },
     {
         "URL": "https://github.com/etnperlong/openwrt-asterisk-chan-quectel.git",
@@ -62,13 +108,13 @@
         ]
     },
     {
-        "URL": "https://github.com/kenzok8/jell.git",
+        "URL": "https://github.com/OpenListTeam/OpenList-OpenWRT.git",
         "subdir": [
             {
-                "dir": "luci-app-frpc"
+                "dir": "openlist"
             },
             {
-                "dir": "luci-app-frps"
+                "dir": "luci-app-openlist"
             }
         ]
     },
