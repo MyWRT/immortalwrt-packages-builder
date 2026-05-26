@@ -45,24 +45,6 @@
         ]
     },
     {
-        "URL": "https://github.com/chenmozhijin/turboacc.git",
-        "branch": "package",
-        "subdir": [
-            {
-                "dir": "nft-fullcone"
-            },
-            {
-                "dir": "shortcut-fe/fast-classifier"
-            },
-            {
-                "dir": "shortcut-fe/shortcut-fe"
-            },
-            {
-                "dir": "shortcut-fe/simulated-driver"
-            }
-        ]
-    },
-    {
         "URL": "https://github.com/Openwrt-Passwall/openwrt-passwall2.git",
         "subdir": [
             {
