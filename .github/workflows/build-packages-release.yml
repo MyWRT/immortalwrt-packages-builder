@@ -47,11 +47,16 @@ jobs:
           find . -name "Makefile" -type f -exec cat {} \;
 
       - name: Build
-        uses: immortalwrt/gh-action-sdk@master
+        uses: MyWRT/gh-action-sdk@main
         env:
+          CONTAINER: immortalwrt/sdk
           ARCH: ${{ env.SDK_ARCH }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           KEY_BUILD: ${{ secrets.KEY_BUILD }}
+          CCACHE: "1"
+          CCACHE_CACHE_PREFIX: ccache-${{ runner.os }}-immortalwrt-${{ env.SDK_ARCH }}
+          CCACHE_COMPILERCHECK: content
+          CCACHE_MAXSIZE: 2GiB
           INDEX: "1"
           IGNORE_ERRORS: "1"
           BUILD_LOG: "1"
