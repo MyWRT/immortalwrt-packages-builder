@@ -15,41 +15,40 @@ on:
       - '!packages/**/LICENSES'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-    inputs:
 
 jobs:
-  buildpkg:
-    name: Build ImmortalWrt Packages
+  build:
+    name: Build ${{ matrix.arch }} / ${{ matrix.version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch:
-          - x86_64-openwrt-25.12
-          - aarch64_generic-openwrt-25.12
+          - x86_64
+          - aarch64_generic
+        version:
+          - "25.12"
+    env:
+      SDK_ARCH: ${{ format('{0}-openwrt-{1}', matrix.arch, matrix.version) }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          
+
       - name: Prepare feeds
         run: |
-          ./patch.sh ${{ matrix.arch }}
-          PACKAGES=$(ls packages | sed 's/\///g')
-          echo "$PACKAGES" > 1.txt
-          sort 1.txt -o 1.txt
+          ./patch.sh "$SDK_ARCH"
+          ls packages | sort > package-list.txt
           sort do_not_build -o do_not_build
-          comm -23 1.txt do_not_build > 2.txt
-          PACKAGES=$(cat 2.txt)
-          PACKAGES=$(echo "$PACKAGES" | tr '\n' ' ')
-          echo "PACKAGES=${PACKAGES}" >> $GITHUB_ENV
+          comm -23 package-list.txt do_not_build > packages-to-build.txt
+          echo "PACKAGES=$(paste -sd' ' packages-to-build.txt)" >> "$GITHUB_ENV"
           find . -name "Makefile" -type f -exec cat {} \;
 
       - name: Build
         uses: immortalwrt/gh-action-sdk@master
         env:
-          ARCH: ${{ matrix.arch }}
-          KEY_BUILD: ${{ secrets.KEY_BUILD }}
+          ARCH: ${{ env.SDK_ARCH }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           INDEX: "1"
           IGNORE_ERRORS: "1"
           BUILD_LOG: "1"
@@ -63,23 +62,36 @@ jobs:
         run: |
           ls -R bin/
 
-      # - name: Upload feed
-      #   uses: Pendect/action-rsyncer@8e05ffa5c93e5d9c9b167796b26044d2c616b2b9
-      #   with:
-      #     flags: '-ahvHP'
-      #     options: '--delete'
-      #     src: 'bin/packages/*/action/'
-      #     dest: '${{ secrets.SF_USER }}@frs.sourceforge.net:/home/frs/project/ekko-openwrt-dist/packages/${{ matrix.arch }}/'
-      #   env:
-      #     DEPLOY_KEY: ${{ secrets.SF_KEY }}
+      - name: Stage versioned packages
+        run: |
+          mkdir artifact-packages
+          mv bin/packages "artifact-packages/packages-${{ matrix.version }}"
 
-      - name: Upload feed to Google Drive
-        uses: andreiio/rclone-action@v1
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
         with:
-          args: copy "bin/packages" "gd:ImmortalWrtBuilder/packages"
-        env:
-          RCLONE_CONFIG_GD_TYPE: drive
-          RCLONE_CONFIG_GD_SCOPE: drive
-          RCLONE_CONFIG_GD_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
-          RCLONE_CONFIG_GD_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
-          RCLONE_CONFIG_GD_TOKEN: ${{ secrets.DRIVE_TOKEN }}
+          name: packages-${{ env.SDK_ARCH }}
+          path: artifact-packages
+          if-no-files-found: error
+          retention-days: 1
+
+  upload:
+    name: Upload
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Set up rclone
+        uses: AnimMouse/setup-rclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Upload Packages to remote bucket
+        run: rclone copy "dist" "remote:ImmortalWRT"
