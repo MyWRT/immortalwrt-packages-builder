@@ -30,15 +30,35 @@ while IFS= read -r -d '' feed_dir; do
   tag="${version_dir}/${arch}/${feedname}"
   notes_file="${notes_dir}/${version_dir}-${arch}-${feedname}.md"
 
-  mapfile -d '' assets < <(find "$feed_dir" -maxdepth 1 -type f -print0 | sort -z)
-  if (( ${#assets[@]} == 0 )); then
+  mapfile -d '' all_files < <(find "$feed_dir" -maxdepth 1 -type f -print0 | sort -z)
+  if (( ${#all_files[@]} == 0 )); then
     echo "Skipping empty package directory: ${rel_path}"
+    continue
+  fi
+
+  assets=()
+  for f in "${all_files[@]}"; do
+    if [[ -s "$f" ]]; then
+      assets+=("$f")
+    else
+      echo "Skipping empty file: ${f##*/}"
+    fi
+  done
+  if (( ${#assets[@]} == 0 )); then
+    echo "Skipping directory with only empty files: ${rel_path}"
     continue
   fi
 
   declare -A wanted_assets=()
   for asset in "${assets[@]}"; do
     wanted_assets["${asset##*/}"]=1
+  done
+
+  pkg_count=0
+  for asset in "${assets[@]}"; do
+    case "${asset##*/}" in
+      *.apk|*.ipk) pkg_count=$((pkg_count + 1)) ;;
+    esac
   done
 
   {
@@ -49,15 +69,9 @@ while IFS= read -r -d '' feed_dir; do
     printf '| OpenWrt version | %s |\n' "$version"
     printf '| Architecture | `%s` |\n' "$arch"
     printf '| Feed | `%s` |\n' "$feedname"
-    printf '| Source directory | `%s` |\n' "$rel_path"
+    printf '| Packages | %d |\n' "$pkg_count"
     printf '| Source commit | [`%s`](%s) |\n' "$short_sha" "$commit_url"
-    printf '| Workflow Run | [#%s](%s) |\n\n' "$GITHUB_RUN_NUMBER" "$run_url"
-    printf '## Files\n\n'
-    for asset in "${assets[@]}"; do
-      asset_name="${asset##*/}"
-      asset_size="$(stat -c '%s' "$asset")"
-      printf -- '- `%s` (%s bytes)\n' "$asset_name" "$asset_size"
-    done
+    printf '| Workflow Run | [#%s](%s) |\n' "$GITHUB_RUN_NUMBER" "$run_url"
   } > "$notes_file"
 
   if gh release view "$tag" >/dev/null 2>&1; then
