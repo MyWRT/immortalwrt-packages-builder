@@ -46,6 +46,14 @@ jobs:
           echo "PACKAGES=$(paste -sd' ' packages-to-build.txt)" >> "$GITHUB_ENV"
           find . -name "Makefile" -type f -exec cat {} \;
 
+      - name: Maximize runner disk space
+        uses: justinthelaw/maximize-github-runner-space@v0.9.0
+        with:
+          cleanup-profile: max
+          # The SDK action runs Docker containers, so keep the Docker engine.
+          skip-components: docker-engine
+          swapfile-size: 2G
+
       - name: Build
         uses: MyWRT/gh-action-sdk@main
         env:
@@ -64,7 +72,6 @@ jobs:
           NO_REFRESH_CHECK: "1"
           PACKAGES: ${{ env.PACKAGES }}
           FEEDNAME: "mywrt"
-          V: "s"
 
       - name: Report ignored package build errors
         if: always()
