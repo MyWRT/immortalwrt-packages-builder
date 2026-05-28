@@ -7,6 +7,24 @@
         "URL": "https://github.com/gngpp/luci-app-design-config.git"
     },
     {
+        "URL": "https://github.com/eamonxg/luci-theme-aurora.git"
+    },
+    {
+        "URL": "https://github.com/eamonxg/luci-app-aurora-config.git"
+    },
+    {
+        "URL": "https://github.com/KawaiiHachimi/luci-theme-material3.git"
+    },
+    {
+        "URL": "https://github.com/rchen14b/luci-theme-glass.git"
+    },
+    {
+        "URL": "https://github.com/ChesterGoodiny/luci-theme-proton2025.git"
+    },
+    {
+        "URL": "https://github.com/eamonxg/luci-theme-shadcn.git"
+    },
+    {
         "URL": "https://github.com/muink/luci-app-natmapt.git"
     },
     {
