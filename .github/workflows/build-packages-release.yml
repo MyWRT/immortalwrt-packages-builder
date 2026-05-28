@@ -195,30 +195,4 @@ jobs:
       - name: Upload Packages to Cloudflare R2
         run: rclone copy "dist" "r2:mywrt-dist"
 
-  release_github:
-    name: Release to GitHub Releases
-    needs: build
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    permissions:
-      actions: read
-      contents: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Download packages
-        uses: actions/download-artifact@v8
-        with:
-          pattern: packages-*
-          path: dist
-          merge-multiple: true
-
-      - name: Upload Packages to GitHub Releases
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          GH_PROMPT_DISABLED: "1"
-        run: bash .github/workflows/scripts/gh-release.sh
