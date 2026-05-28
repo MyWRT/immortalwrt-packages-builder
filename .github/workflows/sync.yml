@@ -9,7 +9,7 @@ on:
       - 'config.json'
 
   schedule:
-  - cron: 12 */6 * * *
+  - cron: 15 3 * * *
 
 jobs:
   buildpkg:
