@@ -133,5 +133,16 @@
                 "dir": "applications/luci-app-dockerman"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/EasyTier/luci-app-easytier.git",
+        "subdir": [
+            {
+                "dir": "easytier"
+            },
+            {
+                "dir": "luci-app-easytier"
+            }
+        ]
     }
 ]
