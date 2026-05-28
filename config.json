@@ -57,6 +57,12 @@
         "subdir": [
             {
                 "dir": "luci-app-mosdns"
+            },
+            {
+                "dir": "v2dat"
+            },
+            {
+                "dir": "mosdns"
             }
         ]
     },
