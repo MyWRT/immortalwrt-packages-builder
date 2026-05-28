@@ -1,0 +1,44 @@
+@layer utilities {
+  .left {
+    @apply !text-left;
+    &:is(td) { @apply md:!text-left; }
+  }
+
+  .right {
+    @apply !text-right;
+    &:is(td) { @apply md:!text-right; }
+  }
+
+  .center {
+    @apply !text-center;
+    &:is(td) { @apply md:!text-center; }
+  }
+
+  .top {
+    @apply !align-top;
+    &:is(td) { @apply md:!align-top; }
+  }
+
+  .bottom {
+    @apply !align-bottom;
+    &:is(td) { @apply md:!align-bottom; }
+  }
+
+  .middle {
+    @apply !align-middle;
+    &:is(td) { @apply md:!align-middle; }
+  }
+
+  .nowrap:not(span) {
+    @apply whitespace-nowrap;
+  }
+
+  .spinning {
+    @apply relative !pl-7;
+    @apply before:absolute before:left-1.5 before:top-1/2 before:size-4 before:-translate-y-1/2 before:animate-spin before:bg-current before:[mask-image:url('@assets/icons/loader-2.svg')] before:[mask-position:center] before:[mask-repeat:no-repeat] before:[mask-size:cover];
+
+    #view > &:first-child {
+      @apply mx-auto grid min-h-48 w-fit place-items-center;
+    }
+  }
+}

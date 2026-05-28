@@ -1,0 +1,1584 @@
+"use strict";
+"require view";
+"require form";
+"require uci";
+"require rpc";
+"require ui";
+"require fs";
+
+const CACHE_KEY = "aurora.version.cache";
+const CACHE_TTL = 1800000;
+const CONFIG_IMPORT_PATH = "/tmp/aurora_config_import.tmp";
+
+const versionCache = {
+  get() {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) return null;
+      const { timestamp, value } = JSON.parse(cached);
+      if (Date.now() - timestamp > CACHE_TTL) {
+        this.clear();
+        return null;
+      }
+      return value;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  set(value) {
+    try {
+      const data = { timestamp: Date.now(), value };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error("Failed to cache version data:", e);
+    }
+  },
+
+  clear() {
+    localStorage.removeItem(CACHE_KEY);
+  },
+};
+
+document.querySelector("head").appendChild(
+  E("script", {
+    type: "text/javascript",
+    src: L.resource("view/aurora/color.global.js"),
+  }),
+);
+
+const callUploadIcon = rpc.declare({
+  object: "luci.aurora",
+  method: "upload_icon",
+  params: ["filename"],
+});
+
+const callListIcons = rpc.declare({
+  object: "luci.aurora",
+  method: "list_icons",
+});
+
+const callRemoveIcon = rpc.declare({
+  object: "luci.aurora",
+  method: "remove_icon",
+  params: ["filename"],
+});
+
+const callCheckUpdates = rpc.declare({
+  object: "luci.aurora",
+  method: "check_updates",
+});
+
+const callGetInstalledVersions = rpc.declare({
+  object: "luci.aurora",
+  method: "get_installed_versions",
+});
+
+const callGetThemeConfig = rpc.declare({
+  object: "luci.aurora",
+  method: "get_theme_config",
+});
+
+const callGetThemePresets = rpc.declare({
+  object: "luci.aurora",
+  method: "get_theme_presets",
+});
+
+const callGetFontPresets = rpc.declare({
+  object: "luci.aurora",
+  method: "get_font_presets",
+});
+
+const callApplyThemePreset = rpc.declare({
+  object: "luci.aurora",
+  method: "apply_theme_preset",
+  params: ["name"],
+});
+
+const callPrepareFont = rpc.declare({
+  object: "luci.aurora",
+  method: "prepare_font",
+  params: ["sans", "mono"],
+  expect: { "": { result: -1, error: "RPC call failed (timeout or transport error)" } },
+});
+
+const callGetFontStatus = rpc.declare({
+  object: "luci.aurora",
+  method: "get_font_status",
+  params: ["job_id"],
+  expect: { "": { state: "missing", error: "RPC call failed" } },
+});
+
+const callExportConfig = rpc.declare({
+  object: "luci.aurora",
+  method: "export_config",
+});
+
+const callImportConfig = rpc.declare({
+  object: "luci.aurora",
+  method: "import_config",
+});
+
+const callResetDefaults = rpc.declare({
+  object: "luci.aurora",
+  method: "reset_defaults",
+});
+
+const resolveCssColor = (() => {
+  let resolverEl = null;
+
+  return (value) => {
+    if (!value || typeof value !== "string") return null;
+    if (!document || !document.documentElement) return null;
+
+    if (!resolverEl) {
+      resolverEl = document.createElement("span");
+      resolverEl.style.cssText =
+        "position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;";
+      (document.body || document.documentElement).appendChild(resolverEl);
+    }
+
+    resolverEl.style.color = "";
+    resolverEl.style.color = value;
+    if (!resolverEl.style.color) return null;
+
+    const computed = getComputedStyle(resolverEl).color;
+    return computed || null;
+  };
+})();
+
+const renderColorPicker = function (option_index, section_id, in_table) {
+  const el = form.Value.prototype.render.apply(this, [
+    option_index,
+    section_id,
+    in_table,
+  ]);
+  return Promise.resolve(el).then((element) => {
+    const input = element.querySelector('input[type="text"]');
+    if (input) {
+      let colorHex = null;
+      const resolved = resolveCssColor(input.value);
+      try {
+        const color = new Color(resolved || input.value);
+        if (color.alpha < 1) color.alpha = 1;
+        colorHex = color.toString({ format: "hex" });
+      } catch (e) {
+        return element;
+      }
+
+      const colorInput = E("input", {
+        type: "color",
+        value: colorHex,
+        style:
+          "margin-left: 8px; height: 2em; width: 3em; vertical-align: middle; cursor: pointer;",
+        title: _("Click to select color visually"),
+        change: () => (input.value = colorInput.value),
+      });
+      input.parentNode.appendChild(colorInput);
+    }
+    return element;
+  });
+};
+
+const addColorInputs = (ss, mode, colorVars, defaults) => {
+  colorVars.forEach(([key, label]) => {
+    const optionKey = `${mode}_${key}`;
+    const defaultValue = defaults?.[optionKey];
+    const so = ss.option(form.Value, optionKey, label);
+    if (defaultValue !== undefined) {
+      so.default = defaultValue;
+      so.placeholder = defaultValue;
+    }
+    so.rmempty = false;
+    so.render = renderColorPicker;
+  });
+};
+
+const createColorSection = (
+  ss,
+  tab,
+  id,
+  title,
+  description,
+  colorVars,
+  mode,
+  defaults,
+) => {
+  const o = ss.taboption(
+    tab,
+    form.SectionValue,
+    id,
+    form.NamedSection,
+    "theme",
+    "aurora",
+    title,
+    description,
+  );
+  addColorInputs(o.subsection, mode, colorVars, defaults);
+};
+
+const createColorSections = (ss, mode, colorGroups, defaults) => {
+  colorGroups.forEach(({ key, title, description, vars }) => {
+    const id = `_${mode}_${key}`;
+    createColorSection(ss, mode, id, title, description, vars, mode, defaults);
+  });
+};
+
+const createRangeControlRenderer = (config) => {
+  return function (option_index, section_id, in_table) {
+    const self = this;
+    const el = form.Value.prototype.render.apply(this, [
+      option_index,
+      section_id,
+      in_table,
+    ]);
+    return Promise.resolve(el).then((element) => {
+      const input = element.querySelector("input");
+      if (input) {
+        input.type = "hidden";
+        const numValue =
+          parseFloat(input.value || self.default) || config.default;
+
+        const valueDisplay = E(
+          "span",
+          {
+            style: `margin-left: 10px; min-width: ${config.displayWidth}px; display: inline-block;`,
+          },
+          `${numValue.toFixed(config.precision)}rem`,
+        );
+
+        const getMaxValue = () => {
+          if (typeof config.max === "function") {
+            return config.max().toString();
+          }
+          return config.max.toString();
+        };
+
+        const maxValue = getMaxValue();
+
+        const rangeInput = E("input", {
+          type: "range",
+          min: config.min.toString(),
+          max: maxValue,
+          step: config.step.toString(),
+          value: numValue,
+          style: "width: 200px; vertical-align: middle;",
+          input: function () {
+            const val = `${parseFloat(this.value).toFixed(config.precision)}rem`;
+            input.value = val;
+            valueDisplay.textContent = val;
+          },
+        });
+
+        if (typeof config.max === "function") {
+          const handleResize = () => {
+            const newMaxWidth = config.max();
+            rangeInput.max = newMaxWidth.toString();
+            if (parseFloat(rangeInput.value) > newMaxWidth) {
+              rangeInput.value = newMaxWidth;
+              const val = `${newMaxWidth.toFixed(config.precision)}rem`;
+              input.value = val;
+              valueDisplay.textContent = val;
+            }
+          };
+
+          window.addEventListener("resize", handleResize);
+        }
+
+        input.parentNode.appendChild(rangeInput);
+        input.parentNode.appendChild(valueDisplay);
+      }
+      return element;
+    });
+  };
+};
+
+const renderSpacingControl = createRangeControlRenderer({
+  min: "-0.1",
+  max: "0.5",
+  step: "0.05",
+  default: 0.25,
+  precision: 2,
+  displayWidth: 60,
+});
+
+const renderContainerMaxWidthControl = createRangeControlRenderer({
+  min: "72",
+  max: () => {
+    const getRootFontSize = () => {
+      return parseFloat(
+        window.getComputedStyle(document.documentElement).fontSize,
+      );
+    };
+
+    const screenWidth = window.innerWidth;
+    const maxWidthPx = screenWidth * (23 / 24);
+    const rootFontSize = getRootFontSize();
+    const maxWidthRem = Math.floor((maxWidthPx / rootFontSize) * 10) / 10;
+    return Math.max(maxWidthRem, 80);
+  },
+  step: "1",
+  default: 80,
+  precision: 1,
+  displayWidth: 80,
+});
+
+const renderRadiusControl = createRangeControlRenderer({
+  min: "0",
+  max: "1.5",
+  step: "0.125",
+  default: 0.5,
+  precision: 3,
+  displayWidth: 70,
+});
+
+const toLoginBgUrl = (filename) =>
+  "url('/luci-static/aurora/images/" + filename + "')";
+
+const fromLoginBgUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const match = value.match(/\/images\/([^')]+)/);
+  return match ? match[1] : "";
+};
+
+const isImageFile = (filename) =>
+  /\.(jpg|jpeg|png|gif|webp|avif|svg|bmp|ico)$/i.test(filename);
+
+const getAssetType = (filename) => {
+  if (/^login-bg\./i.test(filename)) return _("Login Background");
+  if (filename === "logo.svg") return _("Site Logo");
+  if (filename === "favicon.ico") return _("Favicon");
+  if (filename.endsWith(".svg")) return _("SVG Icon");
+  if (/\.(png|jpg|jpeg|webp|gif|avif|bmp)$/i.test(filename)) return _("Image");
+  return _("File");
+};
+
+return view.extend({
+  handleSave: function (ev) {
+    const save = L.bind(function () {
+      return this.super("handleSave", ev);
+    }, this);
+
+    if (typeof this.prepareAuroraFonts === "function") {
+      return this.prepareAuroraFonts().then(save);
+    }
+
+    return save();
+  },
+
+  handleSaveApply: function (ev) {
+    const saveApply = L.bind(function () {
+      return this.super("handleSaveApply", ev);
+    }, this);
+
+    if (typeof this.prepareAuroraFonts === "function") {
+      return this.prepareAuroraFonts().then(saveApply);
+    }
+
+    return saveApply();
+  },
+
+  load: function () {
+    return Promise.all([
+      uci.load("aurora"),
+      L.resolveDefault(callGetThemeConfig(), {}),
+      L.resolveDefault(callGetThemePresets(), {}),
+      L.resolveDefault(callGetInstalledVersions(), {}),
+      L.resolveDefault(callGetFontPresets(), {}),
+    ]);
+  },
+
+  render(loadData) {
+    const themeConfig = loadData[1]?.theme || {};
+    const themePresets = loadData[2]?.presets || [];
+    const installedVersions = loadData[3];
+    const fontPresetsBySlot = loadData[4]?.fonts || {};
+
+    // Order matches luci-theme-aurora/.dev/src/media/main.css @theme inline
+    const baseColorVars = [
+      ["background", _("Background")],
+      ["foreground", _("Foreground")],
+      ["page_bg", _("Page Background")],
+      ["panel_bg", _("Panel Background")],
+      ["primary", _("Primary")],
+      ["primary_foreground", _("Primary Foreground")],
+      ["border", _("Border")],
+    ];
+
+    const componentColorVars = [
+      ["header_bg", _("Header Background")],
+      ["header_interactive", _("Header Interactive")],
+      ["progress_bar_start", _("Progress Bar Start")],
+      ["progress_bar_end", _("Progress Bar End")],
+      ["terminal_bg", _("Terminal Background")],
+      ["terminal_foreground", _("Terminal Foreground")],
+      ["tooltip_bg", _("Tooltip Background")],
+      ["overlay_base", _("Overlay Base")],
+      ["link", _("Link")],
+      ["input_checked", _("Input Checked")],
+      ["label_surface", _("Label Surface")],
+    ];
+
+    const semanticStatusColorVars = [
+      ["secondary", _("Secondary")],
+      ["secondary_foreground", _("Secondary Foreground")],
+      ["destructive", _("Destructive")],
+      ["destructive_foreground", _("Destructive Foreground")],
+      ["accent", _("Accent")],
+      ["accent_foreground", _("Accent Foreground")],
+      ["muted", _("Muted")],
+      ["muted_foreground", _("Muted Foreground")],
+      ["default", _("Default")],
+      ["default_foreground", _("Default Foreground")],
+      ["info", _("Info")],
+      ["info_foreground", _("Info Foreground")],
+      ["warning", _("Warning")],
+      ["warning_foreground", _("Warning Foreground")],
+      ["success", _("Success")],
+      ["success_foreground", _("Success Foreground")],
+      ["error", _("Error")],
+      ["error_foreground", _("Error Foreground")],
+    ];
+
+    const colorGroups = [
+      {
+        key: "base",
+        title: _("Base Colors"),
+        description: _(
+          "The theme layout uses three layers: background (Background) → page container (Page) → panel card (Panel). The Base Colors variables define each layer's background color (Background) and foreground/text color (Foreground). The primary color (Primary) is mainly used for focused/active states of inputs, selects, radios, checkboxes, and dropdowns, and is also used for key buttons and the page footer.",
+        ),
+        vars: baseColorVars,
+      },
+      {
+        key: "component",
+        title: _("Component Colors"),
+        description: _(
+          "Controls colors used by specific UI components: top navigation bar (Header) and boxed dropdown hover background (Header Interactive), progress bar gradient (Progress Bar Start/End), log panel (Terminal), overlay mask (Overlay), links (Link), checked radios/checkboxes (Input Checked), tooltip bubble (Tooltip), and section header surfaces (Label Surface).",
+        ),
+        vars: componentColorVars,
+      },
+      {
+        key: "semantic_status",
+        title: _("Semantic & Status Colors"),
+        description: _(
+          "Semantic colors represent different actions and intents, commonly used in buttons and badges. For example, destructive (Destructive) maps to high‑risk actions like delete or reset. Status colors represent system feedback states, commonly used in tooltip messages (Tooltip), alert dialogs (Alert), status tags (Tag), and legends (Legend). Each status type (Default, Info, Warning, Success, Error) has two colors: a background color and a foreground/text color (Foreground).",
+        ),
+        vars: semanticStatusColorVars,
+      },
+    ];
+
+    const m = new form.Map("aurora", _("Aurora Theme Settings"));
+
+    const themeVersion =
+      installedVersions?.theme?.installed_version || "Unknown";
+    const configVersion =
+      installedVersions?.config?.installed_version || "Unknown";
+
+    let so;
+    const viewCtx = this;
+
+    const buildPresetOptions = () => {
+      if (themePresets.length > 0) {
+        const options = themePresets
+          .filter((preset) => preset?.name)
+          .map((preset) => ({
+            name: preset.name,
+            label: preset.label || preset.name,
+          }));
+        if (options.length > 0) return options;
+      }
+      return [
+        { name: "classic", label: _("Classic") },
+        { name: "monochrome", label: _("Monochrome") },
+        { name: "sage-green", label: _("Sage Green") },
+        { name: "amber-sand", label: _("Amber Sand") },
+        { name: "sky-blue", label: _("Sky Blue") },
+      ];
+    };
+
+    const FONT_DEFAULT_STACKS = {
+      sans: '"Lato", ui-sans-serif, system-ui, sans-serif',
+      mono: 'ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    };
+
+    const buildFontOptions = (slot) => {
+      const list = fontPresetsBySlot?.[slot];
+      if (Array.isArray(list) && list.length > 0) {
+        const options = list
+          .filter((font) => font?.name)
+          .map((font) => ({
+            name: font.name,
+            label: font.label || font.name,
+            source: font.source || "",
+            family: font.family || "",
+            stack: font.stack || "",
+          }));
+        if (options.length > 0) return options;
+      }
+      const fallbackStack = FONT_DEFAULT_STACKS[slot] || "";
+      if (!fallbackStack) return [];
+      return [
+        {
+          name: "default",
+          label: slot === "sans" ? "Lato" : _("System Mono"),
+          source: _("Built-in"),
+          stack: fallbackStack,
+        },
+      ];
+    };
+
+    const buildPresetToolbarNode = () => {
+      const presetOptions = buildPresetOptions();
+      const defaultPreset = "classic";
+      const storedPreset = localStorage.getItem("aurora.theme_preset");
+      const hasStoredPreset = presetOptions.some(
+        (preset) => preset.name === storedPreset,
+      );
+      const initialPreset = hasStoredPreset ? storedPreset : defaultPreset;
+
+      if (!hasStoredPreset) {
+        localStorage.setItem("aurora.theme_preset", initialPreset);
+      }
+
+      const select = E(
+        "select",
+        {
+          class: "cbi-input-select",
+        },
+        presetOptions.map((preset) =>
+          E(
+            "option",
+            {
+              value: preset.name,
+              selected: preset.name === initialPreset ? "selected" : null,
+            },
+            preset.label,
+          ),
+        ),
+      );
+
+      select.addEventListener("change", () => {
+        localStorage.setItem("aurora.theme_preset", select.value);
+      });
+
+      const resolvePresetSelection = () => {
+        const stored = localStorage.getItem("aurora.theme_preset");
+        const storedPreset = presetOptions.find(
+          (preset) => preset.name === stored,
+        );
+        if (storedPreset && select.value !== stored) {
+          select.value = stored;
+        }
+        const presetName =
+          (storedPreset && stored) || select?.value || defaultPreset;
+        const presetLabel =
+          select?.selectedOptions?.[0]?.textContent || presetName;
+        return { presetName, presetLabel };
+      };
+
+      const applyButton = E(
+        "button",
+        {
+          class: "cbi-button cbi-button-apply",
+          title: _("Apply Preset"),
+          click: ui.createHandlerFn(viewCtx, () => {
+            const { presetName, presetLabel } = resolvePresetSelection();
+
+            return ui.showModal(_("Apply Theme Preset"), [
+              E(
+                "p",
+                {},
+                _(
+                  "This will switch the theme style to the '%s' preset and overwrite the configuration in /etc/config/aurora. Do you want to continue?",
+                ).format(presetLabel, presetLabel),
+              ),
+              E("div", { class: "right" }, [
+                E("button", { class: "btn", click: ui.hideModal }, _("Cancel")),
+                " ",
+                E(
+                  "button",
+                  {
+                    class: "btn cbi-button-action important",
+                    click: () => {
+                      ui.showModal(_("Applying..."), [
+                        E("p", { class: "spinning" }, _("Updating theme...")),
+                      ]);
+                      return L.resolveDefault(
+                        callApplyThemePreset(presetName),
+                        {},
+                      ).then((ret) => {
+                        ui.hideModal();
+                        if (ret?.result === 0) {
+                          ui.addNotification(
+                            null,
+                            E("p", _("Preset applied successfully.")),
+                            "info",
+                          );
+                          window.location.reload();
+                        } else {
+                          ui.addNotification(
+                            null,
+                            E(
+                              "p",
+                              _("Apply failed: %s").format(
+                                ret?.error || "Unknown",
+                              ),
+                            ),
+                            "error",
+                          );
+                        }
+                      });
+                    },
+                  },
+                  _("Apply"),
+                ),
+              ]),
+            ]);
+          }),
+        },
+        _("Apply"),
+      );
+
+      const exportButton = E(
+        "button",
+        {
+          class: "cbi-button cbi-button-apply",
+          title: _("Export Configuration"),
+          click: ui.createHandlerFn(viewCtx, () => {
+            return L.resolveDefault(callExportConfig(), null)
+              .then((res) => {
+                if (!res || res.result !== 0) {
+                  throw new Error(res?.error || _("Export failed"));
+                }
+
+                const form = E(
+                  "form",
+                  {
+                    method: "post",
+                    action: L.env.cgi_base + "/cgi-download",
+                    enctype: "application/x-www-form-urlencoded",
+                  },
+                  [
+                    E("input", {
+                      type: "hidden",
+                      name: "sessionid",
+                      value: rpc.getSessionID(),
+                    }),
+                    E("input", {
+                      type: "hidden",
+                      name: "path",
+                      value: res.path,
+                    }),
+                    E("input", {
+                      type: "hidden",
+                      name: "filename",
+                      value: res.filename || "aurora",
+                    }),
+                  ],
+                );
+
+                document.body.appendChild(form);
+                form.submit();
+                form.parentNode.removeChild(form);
+
+                ui.addNotification(
+                  null,
+                  E("p", _("Configuration exported successfully.")),
+                  "info",
+                );
+              })
+              .catch((err) => {
+                ui.addNotification(
+                  null,
+                  E("p", _("Export failed: %s").format(err.message || err)),
+                  "error",
+                );
+              });
+          }),
+        },
+        _("Export"),
+      );
+
+      const importButton = E(
+        "button",
+        {
+          class: "cbi-button cbi-button-add",
+          title: _("Import Configuration"),
+          click: ui.createHandlerFn(viewCtx, function (ev) {
+            const btn = ev.currentTarget || ev.target;
+            const originalLabel = btn?.firstChild?.data;
+
+            return ui
+              .uploadFile(CONFIG_IMPORT_PATH, btn)
+              .then(
+                L.bind(function (res) {
+                  if (!res?.name)
+                    throw new Error(_("No file selected or upload failed"));
+                  if (btn?.firstChild)
+                    btn.firstChild.data = _("Checking file…");
+                  return fs.read(CONFIG_IMPORT_PATH);
+                }, this),
+              )
+              .then(
+                L.bind(function (content) {
+                  const preview = content || "";
+
+                  ui.showModal(_("Apply configuration?"), [
+                    E(
+                      "p",
+                      {},
+                      _(
+                        "Please upload the Aurora configuration file named 'aurora'. This will overwrite the theme configuration at /etc/config/aurora. Press 'Continue' to apply and reload, or 'Cancel' to abort.",
+                      ),
+                    ),
+                    E("pre", {}, preview),
+                    E("div", { class: "right" }, [
+                      E(
+                        "button",
+                        {
+                          class: "btn",
+                          click: ui.createHandlerFn(this, () =>
+                            fs.remove(CONFIG_IMPORT_PATH).finally(ui.hideModal),
+                          ),
+                        },
+                        _("Cancel"),
+                      ),
+                      " ",
+                      E(
+                        "button",
+                        {
+                          class: "btn cbi-button-action important",
+                          click: ui.createHandlerFn(this, () => {
+                            ui.showModal(_("Importing..."), [
+                              E("p", { class: "spinning" }, _("Applying...")),
+                            ]);
+                            return L.resolveDefault(
+                              callImportConfig(),
+                              {},
+                            ).then((ret) => {
+                              ui.hideModal();
+                              if (ret?.result === 0) {
+                                ui.addNotification(
+                                  null,
+                                  E(
+                                    "p",
+                                    _("Configuration imported successfully."),
+                                  ),
+                                  "info",
+                                );
+                                window.location.reload();
+                              } else {
+                                const errorMsg = ret?.error || "Unknown error";
+                                ui.addNotification(
+                                  null,
+                                  E(
+                                    "p",
+                                    _("Import failed: %s").format(errorMsg),
+                                  ),
+                                  "error",
+                                );
+                              }
+                            });
+                          }),
+                        },
+                        _("Continue"),
+                      ),
+                    ]),
+                  ]);
+                }, this),
+              )
+              .catch((err) => {
+                ui.addNotification(
+                  null,
+                  E("p", _("Import failed: %s").format(err.message || err)),
+                  "error",
+                );
+                return L.resolveDefault(fs.remove(CONFIG_IMPORT_PATH), {});
+              })
+              .finally(() => {
+                if (btn?.firstChild && originalLabel !== undefined)
+                  btn.firstChild.data = originalLabel;
+              });
+          }),
+        },
+        _("Import"),
+      );
+
+      const resetButton = E(
+        "button",
+        {
+          class: "cbi-button cbi-button-reset",
+          title: _("Reset to Defaults"),
+          click: ui.createHandlerFn(viewCtx, () => {
+            return ui.showModal(_("Reset to Defaults"), [
+              E(
+                "p",
+                {},
+                _(
+                  "Are you sure you want to reset all theme settings (Color, Structure, Login & Branding) back to the default theme's original configuration? This will revert everything to the default theme's initial state.",
+                ),
+              ),
+              E("div", { class: "right" }, [
+                E("button", { class: "btn", click: ui.hideModal }, _("Cancel")),
+                " ",
+                E(
+                  "button",
+                  {
+                    class: "btn cbi-button-negative",
+                    click: () => {
+                      ui.showModal(_("Resetting..."), [
+                        E("p", { class: "spinning" }, _("Restoring...")),
+                      ]);
+                      return L.resolveDefault(callResetDefaults(), {}).then(
+                        (ret) => {
+                          ui.hideModal();
+                          if (ret?.result === 0) {
+                            window.location.reload();
+                            ui.addNotification(
+                              null,
+                              E("p", _("Settings reset successfully.")),
+                              "info",
+                            );
+                          } else {
+                            ui.addNotification(
+                              null,
+                              E(
+                                "p",
+                                _("Error: %s").format(ret?.error || "Unknown"),
+                              ),
+                              "error",
+                            );
+                          }
+                        },
+                      );
+                    },
+                  },
+                  _("Confirm Reset"),
+                ),
+              ]),
+            ]);
+          }),
+        },
+        _("Reset"),
+      );
+
+      const presetGroup = E(
+        "div",
+        {
+          style: "display:flex; flex-wrap:wrap; gap:0.5em; align-items:center;",
+        },
+        [
+          E(
+            "span",
+            { style: "font-weight: 600; white-space: nowrap;" },
+            _("Preset"),
+          ),
+          select,
+          applyButton,
+        ],
+      );
+
+      const actionGroup = E(
+        "div",
+        {
+          style: "display:flex; flex-wrap:wrap; gap:0.5em; align-items:center;",
+        },
+        [exportButton, importButton, resetButton],
+      );
+
+      return E(
+        "div",
+        {
+          class: "aurora-preset-toolbar",
+          style:
+            "display:flex; flex-wrap:wrap; gap:0.75em 1em; align-items:center;",
+        },
+        [presetGroup, actionGroup],
+      );
+    };
+
+    const headerBar = E(
+      "div",
+      {
+        style:
+          "display: flex; flex-wrap: wrap; gap: 1em; align-items: center; justify-content: space-between;",
+      },
+      [
+        E("div", { style: "display: flex; flex-wrap: wrap; gap: 1em;" }, [
+          E("span", { style: "white-space: nowrap;" }, [
+            document.createTextNode(_("Theme: ")),
+            E(
+              "span",
+              {
+                id: "theme-version",
+                class: "label success",
+                style: "cursor: pointer;",
+              },
+              `v${themeVersion}`,
+            ),
+          ]),
+          E("span", { style: "white-space: nowrap;" }, [
+            document.createTextNode(_("Config: ")),
+            E(
+              "span",
+              {
+                id: "config-version",
+                class: "label success",
+                style: "cursor: pointer;",
+              },
+              `v${configVersion}`,
+            ),
+          ]),
+        ]),
+        buildPresetToolbarNode(),
+      ],
+    );
+
+    m.description = headerBar;
+
+    const s = m.section(form.NamedSection, "theme", "aurora");
+
+    s.tab("colors", _("Color"));
+    s.tab("structure", _("Structure"));
+    s.tab("fonts", _("Fonts"));
+    s.tab("icons_branding", _("Login & Branding"));
+
+    const colorSection = s.taboption(
+      "colors",
+      form.SectionValue,
+      "_colors",
+      form.NamedSection,
+      "theme",
+      "aurora",
+    );
+    const colorSubsection = colorSection.subsection;
+    colorSubsection.tab("light", _("Light Mode"));
+    colorSubsection.tab("dark", _("Dark Mode"));
+
+    createColorSections(colorSubsection, "light", colorGroups, themeConfig);
+    createColorSections(colorSubsection, "dark", colorGroups, themeConfig);
+
+    const structureSection = s.taboption(
+      "structure",
+      form.SectionValue,
+      "_structure_layout",
+      form.NamedSection,
+      "theme",
+      "aurora",
+      _("Layout"),
+      _(
+        "Customize the layout of your interface. Control how the navigation menu displays, adjust the spacing between interface elements, and set the maximum width of the page content container.",
+      ),
+    );
+    const structureSubsection = structureSection.subsection;
+
+    so = structureSubsection.option(
+      form.ListValue,
+      "nav_submenu_type",
+      _("Navigation Submenu Type"),
+    );
+    so.value("mega-menu", _("Mega Menu"));
+    so.value("boxed-dropdown", _("Boxed Dropdown"));
+    so.default = "mega-menu";
+    so.rmempty = false;
+
+    so = structureSubsection.option(
+      form.Value,
+      "struct_spacing",
+      _("Element Spacing"),
+    );
+    so.default = "0.25rem";
+    so.placeholder = "0.25rem";
+    so.rmempty = false;
+    so.render = renderSpacingControl;
+
+    so = structureSubsection.option(
+      form.Value,
+      "struct_radius_base",
+      _("Border Radius"),
+    );
+    so.default = "0.5rem";
+    so.placeholder = "0.5rem";
+    so.rmempty = false;
+    so.render = renderRadiusControl;
+
+    so = structureSubsection.option(
+      form.Value,
+      "struct_container_max_width",
+      _("Page Container Max Width"),
+    );
+    so.default = "80rem";
+    so.placeholder = "80rem";
+    so.rmempty = false;
+    so.render = renderContainerMaxWidthControl;
+
+    const fontSection = s.taboption(
+      "fonts",
+      form.SectionValue,
+      "_font_settings",
+      form.NamedSection,
+      "theme",
+      "aurora",
+      _("Font Settings"),
+      _("Pick a sans-serif font for body text and a monospaced font for code."),
+    );
+    const fontSubsection = fontSection.subsection;
+
+    const fontSlotOpts = {};
+
+    const findFontByPreset = (slot, preset) =>
+      buildFontOptions(slot).find((font) => font.name === preset);
+
+    const findFontByStack = (slot, stack) =>
+      buildFontOptions(slot).find((font) => font.stack === stack);
+
+    const getDefaultFont = (slot) =>
+      findFontByPreset(slot, "default") || buildFontOptions(slot)[0];
+
+    const addFontSlot = (ss, slot) => {
+      const options = buildFontOptions(slot);
+      const stackKey = "struct_font_" + slot;
+      const legacyPresetKey = "font_" + slot + "_preset";
+      const legacyFont = findFontByPreset(
+        slot,
+        themeConfig[legacyPresetKey] || "default",
+      );
+      const defaultFont = getDefaultFont(slot);
+
+      const presetOpt = ss.option(
+        form.ListValue,
+        stackKey,
+        slot === "sans" ? _("Sans-serif Typeface") : _("Monospace Typeface"),
+      );
+      presetOpt.default =
+        themeConfig[stackKey] ||
+        legacyFont?.stack ||
+        defaultFont?.stack ||
+        "";
+      presetOpt.rmempty = false;
+      options.forEach((font) => {
+        if (font.stack) {
+          presetOpt.value(
+            font.stack,
+            font.source
+              ? "%s (%s)".format(font.label, font.source)
+              : font.label,
+          );
+        }
+      });
+      fontSlotOpts[slot] = presetOpt;
+    };
+
+    addFontSlot(fontSubsection, "sans");
+    addFontSlot(fontSubsection, "mono");
+
+    const getFontSelection = (slot) => {
+      const value =
+        (fontSlotOpts[slot] && fontSlotOpts[slot].formvalue("theme")) ||
+        getDefaultFont(slot)?.stack ||
+        "";
+      const font =
+        findFontByStack(slot, value) ||
+        getDefaultFont(slot) ||
+        { name: "default" };
+
+      return {
+        preset: font.name || "default",
+        stack: font.stack || value,
+      };
+    };
+
+    const getSelectedFonts = () => {
+      const sans = getFontSelection("sans");
+      const mono = getFontSelection("mono");
+
+      return {
+        sans: sans.preset,
+        mono: mono.preset,
+        sansStack: sans.stack,
+        monoStack: mono.stack,
+      };
+    };
+
+    const applyFontCss = (selected) => {
+      return fetch(
+        "/luci-static/aurora/fonts/aurora-font.css?v=" + Date.now(),
+        { cache: "no-store" },
+      )
+        .then((r) => {
+          if (!r.ok) throw new Error(_("Font CSS file is not available"));
+          return r.text();
+        })
+        .then((css) => {
+          if (!css) throw new Error(_("Font CSS file is empty"));
+
+          let styleEl = document.getElementById("aurora-preview-fonts");
+          if (!styleEl) {
+            styleEl = document.createElement("style");
+            styleEl.id = "aurora-preview-fonts";
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = css;
+
+          if (selected.sansStack) {
+            document.documentElement.style.setProperty(
+              "--font-sans",
+              selected.sansStack,
+            );
+          }
+          if (selected.monoStack) {
+            document.documentElement.style.setProperty(
+              "--font-mono",
+              selected.monoStack,
+            );
+          }
+        });
+    };
+
+    const pollFontCache = (jobId, remaining, selected) => {
+      if (!jobId || remaining <= 0) return;
+
+      window.setTimeout(() => {
+        L.resolveDefault(callGetFontStatus(jobId), {}).then((status) => {
+          if (status && status.state === "done") {
+            const current = getSelectedFonts();
+            if (
+              current.sans === selected.sans &&
+              current.mono === selected.mono
+            ) {
+              applyFontCss(selected);
+            }
+          } else if (status && status.state !== "missing") {
+            pollFontCache(jobId, remaining - 1, selected);
+          }
+        });
+      }, 1500);
+    };
+
+    const prepareSelectedFonts = () => {
+      const selected = getSelectedFonts();
+      const statusNode = E(
+        "p",
+        { class: "spinning" },
+        _("Preparing selected fonts..."),
+      );
+
+      ui.showModal(_("Preparing Fonts"), [statusNode]);
+
+      return callPrepareFont(selected.sans, selected.mono)
+        .then((res) => {
+          if (!res || res.result !== 0) {
+            throw new Error(res?.error || _("unknown error"));
+          }
+
+          pollFontCache(res.job_id, 20, selected);
+
+          return applyFontCss(selected);
+        })
+        .then(() => {
+          ui.hideModal();
+        })
+        .catch((err) => {
+          ui.hideModal();
+          ui.addNotification(
+            null,
+            E("p", _("Font preparation failed: ") + (err.message || String(err))),
+            "warning",
+          );
+          return Promise.reject(err);
+        });
+    };
+
+    this.prepareAuroraFonts = prepareSelectedFonts;
+
+    const assetSection = s.taboption(
+      "icons_branding",
+      form.SectionValue,
+      "_asset_library",
+      form.NamedSection,
+      "theme",
+      "aurora",
+      _("Asset Library"),
+      _("Manage image files used by the theme. All files are stored in <code>/www/luci-static/aurora/images/</code>."),
+    );
+    const assetSubsection = assetSection.subsection;
+
+    const uploadSo = assetSubsection.option(form.Button, "_upload_asset", _("Upload Asset"));
+    uploadSo.inputstyle = "add";
+    uploadSo.inputtitle = _("Upload image file");
+    uploadSo.onclick = ui.createHandlerFn(this, function () {
+      const fileInput = E("input", { type: "file", style: "display:none", accept: "image/*,.svg" });
+      document.body.appendChild(fileInput);
+
+      return new Promise((resolve) => {
+        const makeRadio = (value, labelText, checked) => {
+          const id = "aurora-asset-type-" + value;
+          const radio = E("input", { type: "radio", id, name: "aurora_asset_type", value });
+          if (checked) radio.checked = true;
+          return E("label", {
+            for: id,
+            style: "display:flex;align-items:center;gap:0.6em;padding:0.35em 0;cursor:pointer;",
+          }, [radio, labelText]);
+        };
+        const cancelFn = () => {
+          document.body.removeChild(fileInput);
+          ui.hideModal();
+          resolve(null);
+        };
+        ui.showModal(_("Upload Asset"), [
+          E("p", { style: "margin-bottom:0.25em;font-weight:600;" }, _("Select what this image will be used for:")),
+          E("div", { style: "margin:0.25em 0 1em;" }, [
+            makeRadio("icon", _("Logo / Icon"), true),
+            makeRadio("media", _("Login background image"), false),
+          ]),
+          E("div", { class: "right" }, [
+            E("button", { class: "btn", click: cancelFn }, _("Cancel")),
+            " ",
+            E("button", {
+              class: "btn cbi-button-action important",
+              click: () => {
+                const checked = document.querySelector('input[name="aurora_asset_type"]:checked');
+                const type = checked ? checked.value : "icon";
+                ui.hideModal();
+                fileInput.onchange = () => {
+                  const file = fileInput.files[0];
+                  document.body.removeChild(fileInput);
+                  resolve(file ? { type, file } : null);
+                };
+                fileInput.click();
+              },
+            }, _("Choose File")),
+          ]),
+        ]);
+      }).then((selection) => {
+        if (!selection) return;
+        const { type, file } = selection;
+        const tmpPath = "/tmp/aurora_icon.tmp";
+
+        ui.showModal(_("Uploading…"), [E("p", { class: "spinning" }, _("Uploading…"))]);
+
+        const formData = new FormData();
+        formData.append("sessionid", rpc.getSessionID());
+        formData.append("filename", tmpPath);
+        formData.append("filemode", "0600");
+        formData.append("filedata", file, file.name);
+
+        return fetch("/cgi-bin/cgi-upload", { method: "POST", credentials: "include", body: formData })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+          .then(() => {
+              return L.resolveDefault(callUploadIcon(file.name), {}).then((ret) => {
+                if (ret?.result === 0) {
+                  ui.addNotification(null, E("p", _("Uploaded: %s").format(file.name)));
+                  window.location.reload();
+                } else {
+                  ui.addNotification(null, E("p", _("Failed to upload: %s").format(ret?.error || "Unknown")));
+                  return L.resolveDefault(fs.remove(tmpPath), {});
+                }
+              });
+          })
+          .catch((err) => {
+
+            ui.hideModal();
+
+            ui.addNotification(null, E("p", _("Upload failed: %s").format(err.message || err)));
+            return L.resolveDefault(fs.remove(tmpPath), {});
+          });
+      });
+    });
+
+    const assetTableSo = assetSubsection.option(form.DummyValue, "_asset_table", " ");
+    assetTableSo.load = () => L.resolveDefault(callListIcons(), { icons: [] });
+    assetTableSo.cfgvalue = (section_id, data) => data?.icons || [];
+    assetTableSo.render = function (option_index, section_id, in_table) {
+      return this.load(section_id).then((data) => {
+        const icons = this.cfgvalue(section_id, data);
+
+        if (icons.length === 0) {
+          return E("div", { "data-name": this.option, style: "padding:0.5em 0;" }, [
+            E("em", {}, _("No assets uploaded yet.")),
+          ]);
+        }
+
+        const table = E("table", { class: "table" }, [
+          E("tr", { class: "tr table-titles" }, [
+            E("th", { class: "th" }, _("Filename")),
+            E("th", { class: "th" }, _("Usage")),
+            E("th", { class: "th center" }, _("Actions")),
+          ]),
+        ]);
+
+        icons.forEach((icon) => {
+          const deleteBtn = E(
+            "button",
+            {
+              class: "cbi-button cbi-button-remove",
+              click: ui.createHandlerFn(this, () => {
+                return ui.showModal(_("Delete Asset"), [
+                  E("p", {}, _("Delete '%s'?").format(icon)),
+                  E("div", { class: "right" }, [
+                    E(
+                      "button",
+                      { class: "btn", click: ui.hideModal },
+                      _("Cancel"),
+                    ),
+                    " ",
+                    E(
+                      "button",
+                      {
+                        class: "btn cbi-button-negative",
+                        click: () => {
+                          ui.showModal(_("Deleting…"), [
+                            E("p", { class: "spinning" }, _("Deleting…")),
+                          ]);
+                          L.resolveDefault(callRemoveIcon(icon), {}).then((ret) => {
+                            ui.hideModal();
+                            if (ret?.result === 0) {
+                              ui.addNotification(
+                                null,
+                                E("p", _("Deleted: %s").format(icon)),
+                              );
+                              window.location.reload();
+                            } else {
+                              ui.addNotification(
+                                null,
+                                E("p", _("Failed to delete: %s").format(icon)),
+                                "error",
+                              );
+                            }
+                          });
+                        },
+                      },
+                      _("Delete"),
+                    ),
+                  ]),
+                ]);
+              }),
+            },
+            _("Delete"),
+          );
+
+          table.appendChild(
+            E("tr", { class: "tr" }, [
+              E("td", { class: "td", style: "font-family:monospace;" }, icon),
+              E("td", { class: "td" }, getAssetType(icon)),
+              E("td", { class: "td center" }, deleteBtn),
+            ]),
+          );
+        });
+
+        return E("div", { "data-name": this.option }, table);
+      });
+    };
+
+    const logoSection = s.taboption(
+      "icons_branding",
+      form.SectionValue,
+      "_branding_settings",
+      form.NamedSection,
+      "theme",
+      "aurora",
+      _("Site Branding"),
+      _(
+        "Select the SVG icon used as the browser tab favicon and the login page logo. Upload your SVG file using the Asset Library above, then select it here. For PWA home screen icon customization, replace <code>pwa/apple-touch-icon.png</code> in the icon library.",
+      ),
+    );
+    const logoSubsection = logoSection.subsection;
+
+
+    so = logoSubsection.option(form.ListValue, "logo_svg", _("Logo Icon"));
+    so.default = "logo.svg";
+    so.rmempty = false;
+    so.load = function (section_id) {
+      return L.resolveDefault(callListIcons(), { icons: [] }).then(
+        L.bind((response) => {
+          const icons = response?.icons || [];
+          this.keylist = [];
+          this.vallist = [];
+          if (icons.length > 0) {
+            icons.forEach(
+              L.bind((icon) => {
+                if (icon.endsWith(".svg")) {
+                  this.value(icon, icon);
+                }
+              }, this),
+            );
+          }
+          return form.ListValue.prototype.load.apply(this, [section_id]);
+        }, this),
+      );
+    };
+
+    so = logoSubsection.option(form.ListValue, "struct_login_bg", _("Login Background"));
+    so.description = _(
+      "Select a static image from the Asset Library. Shown as a full-screen background on the login page.",
+    );
+    so.rmempty = true;
+    so.load = function (section_id) {
+      return L.resolveDefault(callListIcons(), { icons: [] }).then(
+        L.bind((response) => {
+          const icons = response?.icons || [];
+          this.keylist = [];
+          this.vallist = [];
+          this.value("", _("None (Animated Aurora)"));
+          if (icons.length > 0) {
+            icons.forEach(
+              L.bind((icon) => {
+                if (isImageFile(icon) && !icon.endsWith(".svg")) {
+                  this.value(toLoginBgUrl(icon), icon);
+                }
+              }, this),
+            );
+          }
+          return form.ListValue.prototype.load.apply(this, [section_id]);
+        }, this),
+      );
+    };
+    so.cfgvalue = function (section_id) {
+      let value = uci.get("aurora", section_id, "struct_login_bg");
+      if (!value) {
+        const legacy = uci.get("aurora", section_id, "struct_login_bg_media");
+        if (legacy) value = toLoginBgUrl(legacy);
+      }
+      const file = fromLoginBgUrl(value);
+      if (file && /\.(mp4|webm|ogg)$/i.test(file)) return "";
+      return value || "";
+    };
+    so.write = function (section_id, value) {
+      uci.unset("aurora", section_id, "struct_login_bg_media");
+      if (!value) {
+        uci.unset("aurora", section_id, "struct_login_bg");
+        return;
+      }
+      uci.set("aurora", section_id, "struct_login_bg", value);
+    };
+
+    const toolbarSection = s.taboption(
+      "icons_branding",
+      form.SectionValue,
+      "_toolbar_settings",
+      form.NamedSection,
+      "theme",
+      "aurora",
+      _("Floating Toolbar"),
+    );
+    const toolbarSubsection = toolbarSection.subsection;
+
+    so = toolbarSubsection.option(
+      form.Flag,
+      "toolbar_enabled",
+      _("Enable Floating Toolbar"),
+    );
+    so.description = _(
+      "Enable or disable the floating toolbar on the right side of the screen.",
+    );
+    so.default = "1";
+    so.rmempty = false;
+
+    so = toolbarSubsection.option(
+      form.SectionValue,
+      "_toolbar_items",
+      form.GridSection,
+      "toolbar_item",
+      _("Toolbar Buttons"),
+      _(
+        "Customize toolbar buttons by adding new entries, editing existing ones, removing unwanted items, or dragging rows to reorder them.",
+      ),
+    );
+    so.depends("toolbar_enabled", "1");
+    const toolbarGrid = so.subsection;
+    toolbarGrid.addremove = true;
+    toolbarGrid.sortable = true;
+    toolbarGrid.anonymous = true;
+    toolbarGrid.nodescriptions = true;
+
+    so = toolbarGrid.option(form.Flag, "enabled", _("Enabled"));
+    so.default = "1";
+    so.rmempty = false;
+    so.editable = true;
+
+    so = toolbarGrid.option(form.Value, "title", _("Button Title"));
+    so.rmempty = false;
+    so.placeholder = _("e.g., System Settings");
+    so.validate = (section_id, value) =>
+      !value?.trim() ? _("Button title cannot be empty") : true;
+
+    so = toolbarGrid.option(form.Value, "url", _("Target URL"));
+    so.rmempty = false;
+    so.placeholder = "/cgi-bin/luci/admin/...";
+    so.validate = (section_id, value) =>
+      !value?.trim() ? _("URL cannot be empty") : true;
+
+    so = toolbarGrid.option(form.ListValue, "icon", _("Icon"));
+    so.rmempty = false;
+    so.load = function (section_id) {
+      return L.resolveDefault(callListIcons(), { icons: [] }).then(
+        L.bind((response) => {
+          const icons = response?.icons || [];
+          this.keylist = [];
+          this.vallist = [];
+          if (icons.length > 0) {
+            icons.forEach(L.bind((icon) => this.value(icon, icon), this));
+          } else {
+            this.value("", _("(No icons uploaded)"));
+          }
+          return form.ListValue.prototype.load.apply(this, [section_id]);
+        }, this),
+      );
+    };
+    so.validate = (section_id, value) =>
+      !value?.trim() ? _("Please select an icon") : true;
+
+    return m.render().then((mapNode) => {
+      const updateVersionLabel = (label, hasUpdate) => {
+        if (!label || !hasUpdate) return;
+
+        label.className = "label warning";
+        Object.assign(label.style, {
+          position: "relative",
+          paddingRight: "16px",
+        });
+        const redDot = document.createElement("span");
+        redDot.style.cssText =
+          "position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; background: #f44; border-radius: 50%; animation: pulse 2s infinite;";
+        label.appendChild(redDot);
+      };
+
+      requestAnimationFrame(() => {
+        const labels = {
+          theme: mapNode.querySelector("#theme-version"),
+          config: mapNode.querySelector("#config-version"),
+        };
+
+        Object.values(labels).forEach((label) => {
+          if (label)
+            label.onclick = () =>
+              (window.location.href = L.url("admin/system/aurora/version"));
+        });
+
+        const cached = versionCache.get();
+        if (cached) {
+          updateVersionLabel(labels.theme, cached?.theme?.update_available);
+          updateVersionLabel(labels.config, cached?.config?.update_available);
+        } else {
+          L.resolveDefault(callCheckUpdates(), null)
+            .then((updateData) => {
+              if (updateData) {
+                versionCache.set(updateData);
+                updateVersionLabel(
+                  labels.theme,
+                  updateData?.theme?.update_available,
+                );
+                updateVersionLabel(
+                  labels.config,
+                  updateData?.config?.update_available,
+                );
+              }
+            })
+            .catch((err) => console.error("Failed to check version:", err));
+        }
+      });
+
+      return mapNode;
+    });
+  },
+});

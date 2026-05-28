@@ -1,0 +1,10 @@
+/*
+ * PATCH LAYER (temporary)
+ * Quick fixes for known breakages. Keep selectors narrow.
+ * Remove each rule once the root cause is fixed upstream.
+ */
+
+/* bridge-vlan table overflows on mobile */
+[data-name="bridge-vlan"] > div {
+  @apply !overflow-visible;
+}
