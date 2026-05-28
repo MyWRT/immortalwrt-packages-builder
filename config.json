@@ -144,5 +144,21 @@
                 "dir": "luci-app-easytier"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/timsaya/openwrt-bandix.git",
+        "subdir": [
+            {
+                "dir": "openwrt-bandix"
+            }
+        ]
+    },
+    {
+        "URL": "https://github.com/timsaya/luci-app-bandix.git",
+        "subdir": [
+            {
+                "dir": "luci-app-bandix"
+            }
+        ]
     }
 ]
