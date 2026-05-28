@@ -7,14 +7,6 @@
         "URL": "https://github.com/gngpp/luci-app-design-config.git"
     },
     {
-        "URL": "https://github.com/ophub/luci-app-amlogic.git",
-        "subdir": [
-            {
-                "dir": "luci-app-amlogic"
-            }
-        ]
-    },
-    {
         "URL": "https://github.com/muink/luci-app-natmapt.git"
     },
     {
