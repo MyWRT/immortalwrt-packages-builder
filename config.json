@@ -117,5 +117,21 @@
                 "dir": "airsaned"
             }
         ]
-	}
+	},
+    {
+        "URL": "https://github.com/lisaac/luci-lib-docker.git",
+		"subdir": [
+            {
+                "dir": "collections/luci-lib-docker"
+            }
+        ]
+    },
+    {
+        "URL": "https://github.com/lisaac/luci-app-dockerman.git",
+		"subdir": [
+            {
+                "dir": "applications/luci-app-dockerman"
+            }
+        ]
+    }
 ]
