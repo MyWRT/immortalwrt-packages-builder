@@ -99,6 +99,17 @@
             }
         ]
     },
+    {
+        "URL": "https://github.com/OpenListTeam/OpenList-OpenWRT.git",
+        "subdir": [
+            {
+                "dir": "openlist"
+            },
+            {
+                "dir": "luci-app-openlist"
+            }
+        ]
+    },
 	{
 		"URL": "https://github.com/MyWRT/AirSane-openwrt.git",
 		"subdir": [
