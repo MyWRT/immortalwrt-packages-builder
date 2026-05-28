@@ -6,6 +6,7 @@ on:
     paths:
       # - '.github/workflows/build-packages-release.yml'
       - 'patch.sh'
+      - 'local-patches/**'
       - 'do_not_build'
       - 'packages/**'
       - '!packages/**/github/workflows/**'
@@ -170,5 +171,4 @@ jobs:
 
       - name: Upload Packages to Cloudflare R2
         run: rclone copy "dist" "r2:mywrt-dist"
-
 
