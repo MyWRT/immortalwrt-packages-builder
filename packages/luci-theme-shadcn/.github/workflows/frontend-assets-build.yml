@@ -1,11 +1,6 @@
 name: Frontend Assets Build
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".dev/**"
   workflow_dispatch:
 
 permissions:

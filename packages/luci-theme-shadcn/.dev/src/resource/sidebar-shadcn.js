@@ -63,15 +63,28 @@ return baseclass.extend({
     const sidebar = document.getElementById("sidebar");
     if (!sidebar) return;
 
+    const bp = getComputedStyle(document.documentElement).getPropertyValue("--breakpoint-md").trim();
+    this._mobileQuery = window.matchMedia(`(width < ${bp})`);
+    this._mobileQuery.addEventListener("change", (e) => {
+      if (!e.matches) this._hideCollapsedPopover();
+    });
+
     const collapsed = localStorage.getItem(SIDEBAR_KEY) === "true";
     sidebar.setAttribute("data-collapsed", collapsed);
 
     const toggleBtn = document.getElementById("sidebar-toggle-btn");
     if (toggleBtn) {
-      toggleBtn.addEventListener("click", () => this.toggleCollapse());
+      toggleBtn.addEventListener("click", () => {
+        if (this._mobileQuery.matches) {
+          this.closeDrawer();
+        } else {
+          this.toggleCollapse();
+        }
+      });
     }
 
     this._initAccordion();
+    this._initCollapsedPopover();
   },
 
   toggleCollapse() {
@@ -79,13 +92,114 @@ return baseclass.extend({
     if (!sidebar) return;
     const next = sidebar.getAttribute("data-collapsed") !== "true";
     sidebar.setAttribute("data-collapsed", next);
+    document.documentElement.setAttribute("data-sidebar-collapsed", next ? "true" : "false");
     localStorage.setItem(SIDEBAR_KEY, next);
+
+    this._hideCollapsedPopover();
 
     if (next) {
       document.querySelectorAll(".sidebar-accordion-item[data-open='true']").forEach((item) => {
         this._closeAccordionItem(item);
       });
     }
+  },
+
+  /* ── Collapsed hover popover ── */
+
+  _initCollapsedPopover() {
+    document.addEventListener("mouseover", (e) => {
+      const sidebar = document.getElementById("sidebar");
+      if (sidebar?.getAttribute("data-collapsed") !== "true") return;
+
+      if (e.target.closest("#sidebar-collapsed-popover")) {
+        clearTimeout(this._popoverTimer);
+        return;
+      }
+
+      const item = e.target.closest(".sidebar-accordion-item");
+      if (item) {
+        clearTimeout(this._popoverTimer);
+        this._showCollapsedPopover(item);
+      }
+    });
+
+    document.addEventListener("mouseout", (e) => {
+      const sidebar = document.getElementById("sidebar");
+      if (sidebar?.getAttribute("data-collapsed") !== "true") return;
+
+      const isFromRelevant =
+        e.target.closest(".sidebar-accordion-item") ||
+        e.target.closest("#sidebar-collapsed-popover");
+      if (!isFromRelevant) return;
+
+      const to = e.relatedTarget;
+      const isToRelevant =
+        to &&
+        (to.closest(".sidebar-accordion-item") ||
+          to.closest("#sidebar-collapsed-popover"));
+
+      if (!isToRelevant) {
+        this._popoverTimer = setTimeout(() => this._hideCollapsedPopover(), 100);
+      }
+    });
+  },
+
+  _showCollapsedPopover(item) {
+    const section = item.getAttribute("data-section") || "";
+    const existing = document.getElementById("sidebar-collapsed-popover");
+    if (existing && existing.getAttribute("data-section") === section) return;
+
+    this._hideCollapsedPopover();
+
+    const links = item.querySelectorAll(".sidebar-sub-link");
+    if (!links.length) return;
+
+    const label = item.querySelector(".sidebar-label");
+    const title = label ? label.textContent.trim() : "";
+
+    const popover = document.createElement("div");
+    popover.id = "sidebar-collapsed-popover";
+    popover.className = "sidebar-collapsed-popover";
+    popover.setAttribute("data-section", section);
+
+    if (title) {
+      const h = document.createElement("div");
+      h.className = "sidebar-collapsed-popover-title";
+      h.textContent = title;
+      popover.appendChild(h);
+    }
+
+    const ul = document.createElement("ul");
+    ul.className = "sidebar-collapsed-popover-list";
+
+    links.forEach((link) => {
+      const isActive = link.closest(".sidebar-sub-item")?.classList.contains("active");
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = link.href;
+      a.className = "sidebar-collapsed-popover-link" + (isActive ? " active" : "");
+      a.textContent = link.textContent;
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    popover.appendChild(ul);
+    document.body.appendChild(popover);
+
+    const sidebar = document.getElementById("sidebar");
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+
+    popover.style.left = sidebarRect.right + 4 + "px";
+
+    const top = Math.min(itemRect.top, window.innerHeight - popover.offsetHeight - 8);
+    popover.style.top = Math.max(8, top) + "px";
+  },
+
+  _hideCollapsedPopover() {
+    clearTimeout(this._popoverTimer);
+    const el = document.getElementById("sidebar-collapsed-popover");
+    if (el) el.remove();
   },
 
   /* ── Accordion ── */
