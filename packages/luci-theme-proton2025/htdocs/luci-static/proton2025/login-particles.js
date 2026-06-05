@@ -105,8 +105,20 @@
         var hexPhase = 0;
 
         function resize() {
-            w = window.innerWidth;
-            h = window.innerHeight;
+            var doc = document.documentElement;
+            var vv = window.visualViewport;
+
+            w = Math.max(
+                window.innerWidth || 0,
+                doc ? doc.clientWidth || 0 : 0,
+                vv ? Math.floor(vv.width) || 0 : 0
+            );
+
+            h = Math.max(
+                window.innerHeight || 0,
+                doc ? doc.clientHeight || 0 : 0,
+                vv ? Math.floor(vv.height) || 0 : 0
+            );
             dpr = window.devicePixelRatio || 1;
 
             canvas.width = Math.floor(w * dpr);
@@ -791,6 +803,9 @@
         }
 
         window.addEventListener("resize", resize);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", resize);
+        }
 
         window.addEventListener("mousemove", function (e) {
             mouse.x = e.clientX;

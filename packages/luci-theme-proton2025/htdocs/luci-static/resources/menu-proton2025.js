@@ -2970,11 +2970,42 @@ return baseclass.extend({
       return true;
     };
 
-    // Fallbacks: immediate + delayed attempts + observer for dynamic LuCI renders
+    // Fallbacks: immediate + delayed attempts + observer for dynamic LuCI renders.
+    // Keep the observer alive because LuCI may re-render the form after Save/Apply
+    // and remove injected Proton2025 settings from the DOM.
     const root = document.getElementById("maincontent") || document.body;
+
+    if (this._themeSettingsObserver) {
+      this._themeSettingsObserver.disconnect();
+    }
+
+    let remountTimer = null;
     const observer = new MutationObserver(() => {
-      if (tryMount()) observer.disconnect();
+      clearTimeout(remountTimer);
+      remountTimer = setTimeout(() => {
+        if (!document.body.dataset.page?.includes("admin-system-system")) {
+          return;
+        }
+
+        if (document.getElementById("proton-theme-settings")) {
+          return;
+        }
+
+        if (!document.querySelector('[data-name="_mediaurlbase"]')) {
+          return;
+        }
+
+        this._themeSettingsInit = false;
+        observer.disconnect();
+        this._themeSettingsObserver = null;
+        this.initThemeSettings();
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("proton-theme-settings-mounted"));
+        }, 200);
+      }, 150);
     });
+
+    this._themeSettingsObserver = observer;
     observer.observe(root, { childList: true, subtree: true });
 
     // Immediate and delayed attempts

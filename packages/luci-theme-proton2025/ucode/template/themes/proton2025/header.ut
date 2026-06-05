@@ -210,6 +210,7 @@ body {
 <script src="{{ resource }}/cbi.js"></script>
 <script src="{{ media }}/translations.js"></script>
 <script src="{{ media }}/settings-sync.js" defer></script>
+<script src="{{ media }}/mobile-settings-fallback.js" defer></script>
 <script src="{{ media }}/services-widget.js" defer></script>
 <script src="{{ media }}/custom-pages.js" defer></script>
 <script src="{{ media }}/search-proton2025-data.js" defer></script>

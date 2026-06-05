@@ -37,8 +37,9 @@
         return title ? (title.textContent || "").trim() : "";
     }
 
-    function findRowByTitle(names) {
-        var rows = Array.prototype.slice.call(document.querySelectorAll(".cbi-value"));
+    function findRowByTitle(names, root) {
+        var container = root || document;
+        var rows = Array.prototype.slice.call(container.querySelectorAll(".cbi-value"));
 
         for (var i = 0; i < rows.length; i++) {
             var title = getTitleText(rows[i]);
@@ -138,8 +139,20 @@
     }
 
     function inject() {
-        if (document.getElementById("proton-login-animation-select")) {
+        var settingsBlock = document.getElementById("proton-theme-settings");
+
+        if (!settingsBlock) {
             return;
+        }
+
+        var existingRow = document.getElementById("proton-login-animation-row");
+
+        if (existingRow) {
+            if (settingsBlock.contains(existingRow)) {
+                return;
+            }
+
+            existingRow.remove();
         }
 
         var accentRow = findRowByTitle([
@@ -150,33 +163,34 @@
             "Couleur d'Accent",
             "Color de Acento",
             "Cor de Destaque"
-        ]);
+        ], settingsBlock);
 
         var themeRow = findRowByTitle([
             "Theme Mode",
             "Режим темы"
-        ]);
+        ], settingsBlock);
 
         var borderRow = findRowByTitle([
             "Border Radius",
             "Скругление углов"
-        ]);
-
-        var anchor = accentRow || themeRow || borderRow;
-
-        if (!anchor || !anchor.parentNode) {
-            console.warn("[Proton2025] Could not find Proton settings row for login animation");
-            return;
-        }
+        ], settingsBlock);
 
         var row = createRow();
 
-        if (accentRow) {
+        if (accentRow && accentRow.parentNode) {
             accentRow.parentNode.insertBefore(row, accentRow.nextSibling);
-        } else if (themeRow) {
+        } else if (themeRow && themeRow.parentNode) {
             themeRow.parentNode.insertBefore(row, themeRow.nextSibling);
-        } else if (borderRow) {
+        } else if (borderRow && borderRow.parentNode) {
             borderRow.parentNode.insertBefore(row, borderRow);
+        } else {
+            var firstValue = settingsBlock.querySelector(".cbi-value");
+
+            if (firstValue && firstValue.parentNode) {
+                firstValue.parentNode.insertBefore(row, firstValue.nextSibling);
+            } else {
+                settingsBlock.appendChild(row);
+            }
         }
 
         console.log("[Proton2025] Login animation setting injected");
@@ -194,7 +208,27 @@
                 clearInterval(timer);
             }
         }, 300);
+
+        var root = document.getElementById("maincontent") || document.body;
+        if (root && !window.__protonLoginAnimationObserver) {
+            var observerTimer = null;
+            window.__protonLoginAnimationObserver = new MutationObserver(function () {
+                clearTimeout(observerTimer);
+                observerTimer = setTimeout(function () {
+                    inject();
+                }, 100);
+            });
+
+            window.__protonLoginAnimationObserver.observe(root, {
+                childList: true,
+                subtree: true
+            });
+        }
     }
+
+    window.addEventListener("proton-theme-settings-mounted", function () {
+        setTimeout(inject, 50);
+    });
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);

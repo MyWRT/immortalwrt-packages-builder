@@ -16,6 +16,64 @@
 <head>
 <meta charset="utf-8" />
 <script>
+/* Proton2025 login page UCI sync */
+(function () {
+    "use strict";
+
+    var response = {{ sprintf('%J', ubus.call('uci', 'get', { config: 'proton2025', section: 'settings' }) || {}) }};
+    var settings = response && response.values ? response.values : {};
+
+    var map = {
+        mode: "proton-theme-mode",
+        accent: "proton-accent-color",
+        zoom: "proton-zoom",
+        transparency: "proton-transparency",
+        border_radius: "proton-border-radius",
+        animations: "proton-animations",
+        services_widget: "proton-services-widget-enabled",
+        temp_widget: "proton-temp-widget-enabled",
+        services_log: "proton-services-log",
+        table_wrap: "proton-table-wrap",
+        log_highlight: "proton-log-highlight",
+        page_width: "proton-page-width",
+        custom_font: "proton-custom-font",
+        login_animation: "proton-login-animation"
+    };
+
+    var bools = {
+        transparency: true,
+        animations: true,
+        services_widget: true,
+        temp_widget: true,
+        services_log: true,
+        table_wrap: true,
+        log_highlight: true,
+        custom_font: true
+    };
+
+    function toLocal(key, value) {
+        if (value === null || value === undefined) return null;
+
+        if (bools[key]) {
+            return String(value) === "1" ? "true" : "false";
+        }
+
+        return String(value);
+    }
+
+    Object.keys(map).forEach(function (key) {
+        if (!Object.prototype.hasOwnProperty.call(settings, key)) return;
+
+        var value = toLocal(key, settings[key]);
+        if (value === null) return;
+
+        try {
+            localStorage.setItem(map[key], value);
+        } catch (e) {}
+    });
+})();
+</script>
+<script>
 // Apply all theme settings from localStorage (same as header.ut)
 (function() {
      function resolveThemeMode(mode) {
