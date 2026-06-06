@@ -1,3 +1,7 @@
+.hidden {
+  @apply hidden!;
+}
+
 .left {
   @apply md:text-left!;
   &:not(td) {
@@ -45,6 +49,14 @@
   &:not(td) {
     @apply whitespace-nowrap;
   }
+}
+
+.fade-in {
+  @apply animate-in fade-in-0 fill-mode-backwards duration-400;
+}
+
+.fade-out {
+  @apply pointer-events-none opacity-0 transition-opacity duration-400;
 }
 
 .spinning {
