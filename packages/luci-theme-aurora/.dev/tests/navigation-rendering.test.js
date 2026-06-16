@@ -94,6 +94,12 @@ class FakeElement {
     this.listeners.set(type, listeners);
   }
 
+  dispatchEvent(event) {
+    for (const listener of this.listeners.get(event.type) ?? []) {
+      listener(event);
+    }
+  }
+
   closest(selector) {
     let current = this;
 
@@ -167,6 +173,15 @@ class FakeElement {
   removeAttribute(name) {
     this.attributes.delete(name);
     if (name === "class") this.classList.replace("");
+  }
+
+  removeEventListener(type, listener) {
+    const listeners = this.listeners.get(type) ?? [];
+
+    this.listeners.set(
+      type,
+      listeners.filter((item) => item !== listener),
+    );
   }
 
   setAttribute(name, value) {
@@ -385,6 +400,30 @@ test("renders an active group expanded with active page semantics", () => {
   assert.equal(activeLink.getAttribute("aria-current"), "page");
 });
 
+test("renders the active desktop submenu link with current-page semantics", () => {
+  const menu = loadMenuModule({
+    dispatchpath: ["admin", "network", "wireless"],
+  });
+  const list = menu.renderMainMenu(
+    {
+      name: "network",
+      children: {
+        interfaces: { title: "Interfaces" },
+        wireless: { title: "Wireless" },
+      },
+    },
+    "admin/network",
+    1,
+  );
+  const [inactiveItem, activeItem] = list.children;
+  const inactiveLink = inactiveItem.children[0];
+  const activeLink = activeItem.children[0];
+
+  assert.equal(inactiveLink.hasAttribute("aria-current"), false);
+  assert.equal(activeLink.getAttribute("class"), "is-active-page");
+  assert.equal(activeLink.getAttribute("aria-current"), "page");
+});
+
 test("renders an inactive group collapsed and inert", () => {
   const menu = loadMenuModule();
   const item = menu.renderNavigationItem(
@@ -504,6 +543,13 @@ test("skips mega-menu initialization when the top menu is missing", () => {
   });
   assert.equal(calls, 0);
   assert.ok(result instanceof FakeElement);
+});
+
+test("measures mega-menu canvas from the viewport-bounded panel height", () => {
+  const initMegaMenu = getMethodSource("initMegaMenu");
+
+  assert.match(initMegaMenu, /nav\.offsetHeight/);
+  assert.doesNotMatch(initMegaMenu, /nav\.scrollHeight/);
 });
 
 test("skips boxed-dropdown initialization when the top menu is missing", () => {
@@ -720,4 +766,37 @@ test("renders an active group expanded when an open mobile list was initially em
   assert.equal(toggle.getAttribute("aria-expanded"), "true");
   assert.equal(region.getAttribute("aria-hidden"), "false");
   assert.equal(region.hasAttribute("inert"), false);
+});
+
+test("keeps mega-menu stacking state while the close height transition runs", () => {
+  const container = new FakeElement("div", {
+    class: "desktop-menu-container active",
+  });
+  const overlay = new FakeElement("div", {
+    class: "desktop-menu-overlay active",
+  });
+  const document = createFakeDocument({
+    elements: {
+      ".desktop-menu-container": container,
+      ".desktop-menu-overlay": overlay,
+    },
+  });
+  const menu = loadMenuModule({ document });
+
+  container.style.setProperty("--mega-menu-height", "320px");
+
+  menu.hideDesktopNav();
+
+  assert.equal(overlay.classList.contains("active"), false);
+  assert.equal(container.classList.contains("active"), false);
+  assert.equal(container.classList.contains("closing"), true);
+  assert.equal(container.style.properties.has("--mega-menu-height"), false);
+
+  container.dispatchEvent({
+    type: "transitionend",
+    target: container,
+    propertyName: "height",
+  });
+
+  assert.equal(container.classList.contains("closing"), false);
 });

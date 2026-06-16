@@ -255,11 +255,17 @@ return baseclass.extend({
       if (!children.length) return E([]);
 
       children.forEach((child) => {
-        ul.appendChild(
-          E("li", {}, [
-            E("a", { href: L.url(url, child.name) }, [_(child.title)]),
-          ]),
-        );
+        // Mark the current page so it gets the active pill — same vocabulary
+        // as the top-level trigger (.menu-active). tree is the section node,
+        // so tree.name is its dispatch segment.
+        const isActive = this.isActivePath(tree.name, child.name);
+        const attributes = {
+          class: isActive ? "is-active-page" : "",
+          href: L.url(url, child.name),
+        };
+        if (isActive) attributes["aria-current"] = "page";
+
+        ul.appendChild(E("li", {}, [E("a", attributes, [_(child.title)])]));
       });
     }
 
@@ -515,17 +521,32 @@ return baseclass.extend({
       const children = [list];
 
       if (document.body?.dataset?.navType === "mega-menu") {
-        // Constant canvas: links fill top-to-bottom; capping at 4 columns
-        // keeps the canvas height stable until a submenu exceeds 24 items.
+        // Constant canvas: links fill top-to-bottom. Base column count is 4;
+        // more items grow the row count, not the width, so the list stays
+        // inside the three-column canvas middle track.
         list.style.setProperty(
           "--menu-rows",
           Math.max(6, Math.ceil(submenu.length / 4)),
         );
+        // data-section keys the first-level icon off the node name (stable,
+        // language-independent) — see _layout.css. Unmapped names fall back
+        // to the default icon via var(--menu-icon, …).
         children.unshift(
           E("div", { class: "desktop-nav-anchor" }, [
-            E("span", { class: "desktop-nav-title" }, [_(child.title)]),
+            E(
+              "span",
+              { class: "desktop-nav-title", "data-section": child.name },
+              [_(child.title)],
+            ),
           ]),
         );
+        // Right column: clone the server-rendered device board into each
+        // panel so the grid can lay it out as the third track. The original
+        // stays hidden as the template (see _layout.css).
+        const board = document.querySelector(
+          ".desktop-menu-container > .desktop-menu-board",
+        );
+        if (board) children.push(board.cloneNode(true));
       }
 
       nav = E("div", { class: "desktop-nav" }, children);
@@ -570,7 +591,7 @@ return baseclass.extend({
         let maxPanel = 0;
         header
           .querySelectorAll(".desktop-nav")
-          .forEach((nav) => (maxPanel = Math.max(maxPanel, nav.scrollHeight)));
+          .forEach((nav) => (maxPanel = Math.max(maxPanel, nav.offsetHeight)));
         canvasHeight = headerHeight + maxPanel;
       }
       container?.style.setProperty("--mega-menu-height", `${canvasHeight}px`);
@@ -583,6 +604,44 @@ return baseclass.extend({
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(applyCanvasHeight, 150);
     });
+
+    // Pointer trajectory: keep a sample from ~60ms ago so a pill's mouseenter
+    // can tell whether the cursor is diving down into the open panel (heading
+    // for a submenu link) versus scanning along the pill row. Diving across
+    // the row would otherwise hijack the open category on every pill it grazes.
+    let agedPos = { x: 0, y: 0 };
+    let agedAt = 0;
+    let livePos = { x: 0, y: 0 };
+    header.addEventListener("mousemove", (e) => {
+      if (e.timeStamp - agedAt > 60) {
+        agedPos = livePos;
+        agedAt = e.timeStamp;
+      }
+      livePos = { x: e.clientX, y: e.clientY };
+    });
+
+    // menu-aim / "safe area": instead of the cursor's instantaneous slope
+    // (which reads near-horizontal exactly when it grazes the neighbouring
+    // pills at the very start of a dive), project the travel vector forward and
+    // ask whether it lands inside the OPEN panel. If the user is aiming at a
+    // submenu link — even the far top-left one, reached by a shallow diagonal
+    // across other pills — the projection falls within the panel rect, so we
+    // hold the current category instead of letting each grazed pill hijack it.
+    const isAimingIntoOpenPanel = () => {
+      const openNav = header.querySelector(".desktop-nav.active");
+      if (!openNav) return false;
+
+      const vx = livePos.x - agedPos.x;
+      const vy = livePos.y - agedPos.y;
+      if (vy <= 2) return false; // horizontal / upward → a deliberate switch
+
+      const rect = openNav.getBoundingClientRect();
+      if (livePos.y >= rect.top) return true; // already descending into it
+
+      // Where the current heading crosses the panel's top edge.
+      const xAtTop = livePos.x + (vx * (rect.top - livePos.y)) / vy;
+      return xAtTop >= rect.left - 24 && xAtTop <= rect.right + 24;
+    };
 
     children.forEach((child) => {
       const { li, nav, menuLink, hasSubmenu } = this.buildDropdownItem(
@@ -605,6 +664,14 @@ return baseclass.extend({
           hideTimer = null;
         }
 
+        // First open waits for hover intent. Once open, scanning the pill row
+        // switches instantly (Apple's flyout-change feel), but a cursor diving
+        // diagonally toward a submenu link must NOT hijack every pill it grazes
+        // — so while diving we fall back to a short intent dwell that a quick
+        // pass-through cancels via mouseleave before it ever fires.
+        const isOpen = container?.classList.contains("active");
+        const delay = !isOpen ? 100 : isAimingIntoOpenPanel() ? 260 : 0;
+
         showTimer = setTimeout(() => {
           const wasActive = nav.classList.contains("active");
 
@@ -617,10 +684,11 @@ return baseclass.extend({
           if (container) {
             applyCanvasHeight();
             container.classList.add("active");
+            container.classList.remove("closing");
             overlay.classList.add("active");
           }
           nav.classList.add("active");
-        }, 100);
+        }, delay);
       });
 
       li.addEventListener("mouseleave", () => {
@@ -703,42 +771,47 @@ return baseclass.extend({
     document.querySelector(".desktop-menu-overlay")?.classList.remove("active");
 
     if (!container) return;
+    if (
+      !container.classList.contains("active") &&
+      !container.classList.contains("closing")
+    )
+      return;
 
-    const wasActive = container.classList.contains("active");
+    container.classList.add("closing");
     container.classList.remove("active");
 
-    // --mega-menu-height is set on open in initMegaMenu and otherwise never
-    // cleared. Drop it back to the h-0 fallback once the container is fully
-    // hidden, so a closed menu doesn't leave invisible scrollable space
-    // below the header on pages shorter than the canvas.
-    const resetHeight = () => {
+    // Retract the canvas: dropping --mega-menu-height lets the container's
+    // height fall to its 0 fallback, and because the container transitions
+    // height (see _layout.css) it animates the collapse — the drawer close —
+    // instead of the height vanishing in one frame after the fade. overflow
+    // -hidden clips the content as it goes; the end state is already h-0 so no
+    // post-transition reset is needed.
+    container.style.removeProperty("--mega-menu-height");
+
+    let closeFallback = null;
+    const finishClosing = (event) => {
+      if (event?.target && event.target !== container) return;
+      if (event?.propertyName && event.propertyName !== "height") return;
+
+      if (closeFallback !== null) {
+        clearTimeout(closeFallback);
+        closeFallback = null;
+      }
+
+      container.removeEventListener("transitionend", finishClosing);
+
       if (!container.classList.contains("active")) {
-        container.style.removeProperty("--mega-menu-height");
+        container.classList.remove("closing");
       }
     };
 
-    // If the menu was never open, removing "active" is a no-op: clip-path
-    // never changes, so transitionend/transitioncancel would never fire and
-    // these listeners would pile up on every header mouseleave.
-    if (
-      !wasActive ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      resetHeight();
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      finishClosing();
       return;
     }
 
-    const onClipPathSettled = (event) => {
-      if (event.target !== container || event.propertyName !== "clip-path") {
-        return;
-      }
-      container.removeEventListener("transitionend", onClipPathSettled);
-      container.removeEventListener("transitioncancel", onClipPathSettled);
-      resetHeight();
-    };
-
-    container.addEventListener("transitionend", onClipPathSettled);
-    container.addEventListener("transitioncancel", onClipPathSettled);
+    container.addEventListener("transitionend", finishClosing);
+    closeFallback = setTimeout(finishClosing, 350);
   },
 
   renderModeMenu(tree) {

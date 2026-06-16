@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import Color from "colorjs.io";
-import { resolveMode } from "./resolve.js";
+import { resolveMode } from "../tokens/resolve.js";
 
 // [L, C, H] in oklch; alpha separate.
 const lch = (s) => {
@@ -49,17 +49,25 @@ test("dark layering: page < card, sunken between page and card", () => {
   assert.ok(sunk >= bg && sunk < surf, `sunken not between page and card: ${d.surface_sunken}`);
 });
 
-test("mega-menu panel and overlays use stronger blur", () => {
+test("mega-menu frost lives on the curtain, not the height-animating panel", () => {
   const layout = read("../src/media/_layout.css");
   const overlay = read("../src/media/components/_overlay.css");
-  // The mega-menu panel line carries the menu background + blur.
+  // The panel animates geometry (height) for the drawer open/close, so it must
+  // carry NO backdrop-filter — blurring a resizing box re-rasterises every
+  // frame (the old clip-path flicker). The frost moved entirely to the curtain.
   const panel = layout.split("\n").find((l) => l.includes("bg-mega-menu-bg"));
-  assert.ok(panel?.includes("backdrop-blur-lg"), `panel blur: ${panel}`);
-  assert.ok(overlay.includes("max-md:backdrop-blur-lg"), "mobile overlay blur");
+  assert.ok(!panel?.includes("backdrop-blur"), `panel must not blur: ${panel}`);
   assert.ok(
-    /&\.active\s*\{\s*@apply[^;]*backdrop-blur-lg/.test(overlay),
-    "desktop overlay blur",
+    panel?.includes("transition-[height,visibility]"),
+    `panel animates height: ${panel}`,
   );
+  // The curtain carries the blur permanently (Apple's globalnav-curtain) and
+  // fades it with opacity/visibility, never snapping it on/off via .active.
+  assert.ok(overlay.includes("max-md:backdrop-blur-lg"), "mobile overlay blur");
+  const curtain = overlay
+    .split("\n")
+    .find((l) => l.includes("bg-mega-menu-scrim"));
+  assert.ok(curtain?.includes("backdrop-blur-lg"), `desktop curtain blur: ${curtain}`);
 });
 
 test("maincontent cards use a hairline border, not heavy shadow", () => {
@@ -68,6 +76,47 @@ test("maincontent cards use a hairline border, not heavy shadow", () => {
   assert.ok(rule.includes("border-hairline"), `no hairline: ${rule}`);
   assert.ok(rule.includes("border"), `no border: ${rule}`);
   assert.ok(!rule.includes("shadow-lg"), `still shadow-lg: ${rule}`);
+});
+
+test("main view does not create an animation stacking context", () => {
+  const layout = read("../src/media/_layout.css");
+  const rule = layout.match(/#view\s*\{\s*@apply\s+([^;]+);/)?.[1] ?? "";
+
+  for (const utility of [
+    "animate-in",
+    "fade-in-0",
+    "slide-in-from-top-2",
+    "fill-mode-backwards",
+    "fill-mode-both",
+  ]) {
+    assert.ok(!rule.includes(utility), `view still uses ${utility}: ${rule}`);
+  }
+});
+
+test("content dropdowns stay above the closed header and below the open mega-menu", () => {
+  const layer = (value) => ["z", value].join("-");
+  const layout = read("../src/media/_layout.css");
+  const dropdown = read("../src/media/components/_dropdown.css");
+  const message = read("../src/media/components/_message.css");
+  const overlay = read("../src/media/components/_overlay.css");
+  const headerRule = layout.match(/^header\s*\{\s*@apply\s+([^;]+);/m)?.[1] ?? "";
+  const activeHeaderRule =
+    layout.match(
+      /\[data-nav-type="mega-menu"\]\s*&:has\([\s\S]*?\.desktop-menu-container[\s\S]*?\.active[\s\S]*?\)\s*\{\s*@apply\s+([^;]+);/,
+    )?.[1] ?? "";
+  const dropdownRule = dropdown.match(/&\.dropdown\s*\{\s*@apply\s+([^;]+);/)?.[1] ?? "";
+  const messageRule = message.match(/\.alert-message\s*\{\s*@apply\s+([^;]+);/)?.[1] ?? "";
+  const overlayRule =
+    overlay.match(/& \.desktop-menu-overlay\s*\{\s*@apply\s+([^;]+);/)?.[1] ?? "";
+
+  assert.ok(messageRule.includes(layer(30)), `message layer changed: ${messageRule}`);
+  assert.ok(headerRule.includes(layer(40)), `closed header layer changed: ${headerRule}`);
+  assert.ok(dropdownRule.includes(layer(50)), `dropdown layer changed: ${dropdownRule}`);
+  assert.ok(overlayRule.includes(layer(60)), `menu overlay layer changed: ${overlayRule}`);
+  assert.ok(
+    activeHeaderRule.includes(layer(70)),
+    `open mega-menu layer changed: ${activeHeaderRule}`,
+  );
 });
 
 test("tables get a hairline frame + sunken header, body stays unclipped", () => {
