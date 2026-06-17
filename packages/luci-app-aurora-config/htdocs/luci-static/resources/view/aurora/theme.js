@@ -108,63 +108,206 @@ const callWritePwaManifest = rpc.declare({
 const COLOR_TOKENS = [
   {
     key: "bg",
-    label: _("Background"),
-    description: _("The outer application background."),
+    label: _("App Background"),
+    description: _("Canvas color behind pages, menus, and empty space."),
     group: "foundation",
   },
   {
     key: "surface",
-    label: _("Surface"),
-    description: _("Cards, panels, forms, and page content background."),
+    label: _("Content Surface"),
+    description: _("Main background for panels, cards, forms, and page content."),
     group: "foundation",
   },
   {
     key: "text",
-    label: _("Text"),
-    description: _("The primary text and icon color."),
+    label: _("Primary Text"),
+    description: _("Default text and icon color on content surfaces."),
     group: "identity",
   },
   {
     key: "brand",
-    label: _("Brand"),
-    description: _("The main interactive and branded accent."),
+    label: _("Brand Accent"),
+    description: _("Main action color for buttons, active items, and selected states."),
     group: "identity",
   },
   {
     key: "on_brand",
-    label: _("Content on Brand"),
-    description: _("Text and icons shown on the brand color."),
+    label: _("Text on Brand"),
+    description: _("Text and icons placed on brand-filled buttons and badges."),
     group: "identity",
   },
   {
     key: "link",
-    label: _("Link"),
-    description: _("Text links and link-like actions."),
+    label: _("Link Color"),
+    description: _("Standalone links and navigation-style text actions."),
     group: "identity",
   },
   {
     key: "info",
-    label: _("Info Accent"),
-    description: _("The accent used for informational feedback."),
+    label: _("Info"),
+    description: _("Accent for neutral information messages and tags."),
     group: "status",
   },
   {
     key: "warning",
-    label: _("Warning Accent"),
-    description: _("The accent used for warning feedback."),
+    label: _("Warning"),
+    description: _("Accent for warnings and attention-needed states."),
     group: "status",
   },
   {
     key: "success",
-    label: _("Success Accent"),
-    description: _("The accent used for successful feedback."),
+    label: _("Success"),
+    description: _("Accent for successful, healthy, or enabled states."),
     group: "status",
   },
   {
     key: "danger",
-    label: _("Danger Accent"),
-    description: _("The accent used for errors and destructive actions."),
+    label: _("Danger"),
+    description: _("Accent for errors, failures, and destructive actions."),
     group: "status",
+  },
+];
+
+const DERIVED_COLOR_TOKENS = [
+  {
+    key: "text_muted",
+    label: _("Muted Text"),
+    description: _("Secondary labels and helper text. Generated from Primary Text and App Background."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "text_subtle",
+    label: _("Subtle Text"),
+    description: _("Lowest-emphasis text such as disabled hints. Generated from Primary Text and App Background."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "surface_sunken",
+    label: _("Inset Surface"),
+    description: _("Recessed areas such as code blocks, tables, and empty states. Generated from the surface stack."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "surface_overlay",
+    label: _("Raised Surface"),
+    description: _("Popovers, elevated panels, and menu layers. Generated from the surface stack."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "hairline",
+    label: _("Divider"),
+    description: _("Thin borders and separators. Generated from Primary Text with low opacity."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "hover_faint",
+    label: _("Neutral Hover"),
+    description: _("Soft hover fill for non-brand rows, controls, and menu items."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "brand_hover",
+    label: _("Brand Hover"),
+    description: _("Hover color for brand-filled buttons and active controls."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "brand_subtle",
+    label: _("Brand Tint"),
+    description: _("Soft brand-tinted background for selected rows, pills, and quiet emphasis."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "brand_subtle_hover",
+    label: _("Brand Tint Hover"),
+    description: _("Hover fill for controls that use Brand Tint instead of solid Brand Accent."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "focus_ring",
+    label: _("Focus Ring"),
+    description: _("Keyboard focus outline generated from Brand Accent."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "progress_start",
+    label: _("Progress Start"),
+    description: _("Start color for progress gradients, mixed from Brand Accent and Inset Surface."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "progress_end",
+    label: _("Progress End"),
+    description: _("End color for progress gradients. Follows Brand Accent by default."),
+    group: "brand_interaction",
+    derived: true,
+  },
+  {
+    key: "info_surface",
+    label: _("Info Background"),
+    description: _("Background for information alerts and tags. Generated from Info."),
+    group: "status_surfaces",
+    derived: true,
+  },
+  {
+    key: "warning_surface",
+    label: _("Warning Background"),
+    description: _("Background for warning alerts and tags. Generated from Warning."),
+    group: "status_surfaces",
+    derived: true,
+  },
+  {
+    key: "success_surface",
+    label: _("Success Background"),
+    description: _("Background for success alerts and tags. Generated from Success."),
+    group: "status_surfaces",
+    derived: true,
+  },
+  {
+    key: "danger_surface",
+    label: _("Danger Background"),
+    description: _("Background for error and destructive-action messages. Generated from Danger."),
+    group: "status_surfaces",
+    derived: true,
+  },
+  {
+    key: "danger_surface_hover",
+    label: _("Danger Background Hover"),
+    description: _("Hover fill for quiet destructive actions. Generated from Danger Background."),
+    group: "status_surfaces",
+    derived: true,
+  },
+  {
+    key: "scrim",
+    label: _("Scrim"),
+    description: _("Backdrop overlay behind dialogs and blocking panels."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "mega_menu_bg",
+    label: _("Mega Menu Background"),
+    description: _("Background for expanded mega menu panels."),
+    group: "hierarchy",
+    derived: true,
+  },
+  {
+    key: "mega_menu_scrim",
+    label: _("Mega Menu Scrim"),
+    description: _("Backdrop overlay shown behind expanded mega menus."),
+    group: "hierarchy",
+    derived: true,
   },
 ];
 
@@ -172,24 +315,68 @@ const COLOR_GROUPS = [
   {
     key: "foundation",
     title: _("Surfaces"),
-    description: _("Set the application background and surface colors."),
+    description: _("Set the page canvas and the main content layer."),
   },
   {
     key: "identity",
     title: _("Content & Identity"),
     description: _(
-      "Set primary text, brand, content on brand, and link colors.",
+      "Set readable text, the main action color, text on that action color, and links.",
     ),
   },
   {
     key: "status",
     title: _("Status Accents"),
-    description: _("Set the broad accents used by status families."),
+    description: _("Set the source colors for info, warning, success, and danger feedback."),
   },
 ];
 
+const DERIVED_COLOR_GROUPS = [
+  {
+    key: "brand_interaction",
+    title: _("Brand Interaction"),
+    description: _("Generated from Brand Accent for hover, focus, tint, and progress details."),
+  },
+  {
+    key: "hierarchy",
+    title: _("Text & Surface Hierarchy"),
+    description: _("Generated from App Background, Content Surface, and Primary Text."),
+  },
+  {
+    key: "status_surfaces",
+    title: _("Status Surfaces"),
+    description: _("Generated from the four status accents for alert and tag backgrounds."),
+  },
+];
+
+const ALL_COLOR_TOKENS = COLOR_TOKENS.concat(DERIVED_COLOR_TOKENS);
+const COLOR_FORMAT_HELP = _(
+  "Color fields accept #hex, rgb(), hsl(), lab(), and oklch(). The picker fills hex; advanced values can be typed manually.",
+);
+
 const cssTokenName = (key) => key.replaceAll("_", "-");
 const colorOptionName = (mode, key) => `${mode}_${key}`;
+
+const toRuntimeColor = (value) => {
+  const raw = value?.trim?.() || "";
+  if (!raw || typeof Color !== "function") return raw;
+
+  try {
+    return new Color(raw).to("srgb").toString({ format: "hex" });
+  } catch (_error) {
+    return raw;
+  }
+};
+
+const toPickerColor = (value) => {
+  const color = new Color(value).to("srgb");
+  color.alpha = 1;
+  return color.toString({ format: "hex" });
+};
+
+const sameColorValue = (a, b) =>
+  Boolean(a && b) &&
+  toRuntimeColor(a).toLowerCase() === toRuntimeColor(b).toLowerCase();
 
 const readThemeConfigFromUci = () => {
   const config = {};
@@ -202,7 +389,9 @@ const readThemeConfigFromUci = () => {
   copyOption("struct_font_sans");
   copyOption("struct_font_mono");
   ["light", "dark"].forEach((mode) => {
-    COLOR_TOKENS.forEach(({ key }) => copyOption(colorOptionName(mode, key)));
+    ALL_COLOR_TOKENS.forEach(({ key }) =>
+      copyOption(colorOptionName(mode, key)),
+    );
   });
 
   return config;
@@ -269,21 +458,22 @@ const createColorResolver = () => {
     return framePromise;
   };
 
-  const resolveMode = (mode, values) => {
+  const resolveMode = (mode, values, tokens = COLOR_TOKENS) => {
     queue = queue.catch(() => {}).then(async () => {
       const { root, probe } = await ensureFrame();
       root.setAttribute("data-darkmode", mode === "dark" ? "true" : "false");
 
-      COLOR_TOKENS.forEach(({ key }) => {
+      ALL_COLOR_TOKENS.forEach(({ key }) => {
         root.style.removeProperty(`--${cssTokenName(key)}`);
       });
-      COLOR_TOKENS.forEach(({ key }) => {
+      ALL_COLOR_TOKENS.forEach(({ key }) => {
         const value = values[key]?.trim();
-        if (value) root.style.setProperty(`--${cssTokenName(key)}`, value);
+        if (value)
+          root.style.setProperty(`--${cssTokenName(key)}`, toRuntimeColor(value));
       });
 
       const results = new Map();
-      COLOR_TOKENS.forEach(({ key }) => {
+      tokens.forEach(({ key }) => {
         const name = cssTokenName(key);
         probe.parentElement.style.color = "rgb(1 2 3)";
         probe.style.color = `var(--${name}, rgb(1 2 3))`;
@@ -320,6 +510,7 @@ const createColorEditor = (themeConfig, presetColors) => {
   const resolver = createColorResolver();
   const fields = { light: new Map(), dark: new Map() };
   const states = { light: new Map(), dark: new Map() };
+  const derivedOverrides = { light: new Map(), dark: new Map() };
   const timers = { light: null, dark: null };
   const previewOriginal = new Map();
   let modeObserver = null;
@@ -342,15 +533,16 @@ const createColorEditor = (themeConfig, presetColors) => {
     return themeConfig[colorOptionName(mode, key)] || "";
   };
 
+  const isInputToken = (key) => COLOR_TOKENS.some((token) => token.key === key);
+  const isDerivedToken = (key) =>
+    DERIVED_COLOR_TOKENS.some((token) => token.key === key);
+
   const valuesForMode = (mode) =>
     Object.fromEntries(
-      COLOR_TOKENS.map(({ key }) => [key, valueFor(mode, key)]),
+      ALL_COLOR_TOKENS.map(({ key }) => [key, valueFor(mode, key)]),
     );
 
-  // Expand the 10 editable inputs into the full resolved token set (inputs +
-  // derived) via the shared engine. Returns null if the engine is not loaded
-  // yet or any input is blank, so callers fall back to the baked theme values.
-  const resolvedForMode = (mode) => {
+  const automaticForMode = (mode) => {
     if (typeof AuroraTokens === "undefined") return null;
     const inputs = {};
     for (const { key } of COLOR_TOKENS) {
@@ -365,7 +557,48 @@ const createColorEditor = (themeConfig, presetColors) => {
     }
   };
 
-  const isInputToken = (key) => COLOR_TOKENS.some((token) => token.key === key);
+  const isDerivedOverride = (mode, key) =>
+    Boolean(derivedOverrides[mode].get(key));
+
+  const setDerivedOverride = (mode, key, enabled) => {
+    if (!isDerivedToken(key)) return;
+    derivedOverrides[mode].set(key, Boolean(enabled));
+  };
+
+  const syncDerivedInitialState = (mode, automatic) => {
+    if (!automatic) return;
+    DERIVED_COLOR_TOKENS.forEach(({ key }) => {
+      const field = fields[mode].get(key);
+      if (!field || field.initialized) return;
+
+      const saved = field.input.value.trim();
+      const autoValue = automatic[key]?.trim() || "";
+      const override = Boolean(saved && !sameColorValue(saved, autoValue));
+      field.initialized = true;
+      setDerivedOverride(mode, key, override);
+      if (!override) field.input.value = "";
+    });
+  };
+
+  // Expand the 10 input colors into a full token snapshot. Derived tokens use
+  // automatic values unless the user explicitly supplied an override.
+  const resolvedForMode = (mode) => {
+    const automatic = automaticForMode(mode);
+    if (!automatic) return null;
+    syncDerivedInitialState(mode, automatic);
+
+    const resolved = { ...automatic };
+    for (const { key } of DERIVED_COLOR_TOKENS) {
+      const value = valueFor(mode, key).trim();
+      const state = stateFor(mode, key);
+      if (isDerivedOverride(mode, key) && value) {
+        if (!state.valid) return null;
+        resolved[key] = value;
+      }
+    }
+
+    return resolved;
+  };
 
   const rememberPreview = (property) => {
     if (previewOriginal.has(property)) return;
@@ -408,7 +641,7 @@ const createColorEditor = (themeConfig, presetColors) => {
       const value = valueFor(mode, key).trim();
       rememberPreview(property);
       if (value) {
-        document.documentElement.style.setProperty(property, value);
+        document.documentElement.style.setProperty(property, toRuntimeColor(value));
       } else {
         restorePreviewProperty(property);
       }
@@ -422,7 +655,10 @@ const createColorEditor = (themeConfig, presetColors) => {
         if (isInputToken(key)) return;
         const property = `--${cssTokenName(key)}`;
         rememberPreview(property);
-        document.documentElement.style.setProperty(property, resolved[key]);
+        document.documentElement.style.setProperty(
+          property,
+          toRuntimeColor(resolved[key]),
+        );
       });
     }
   };
@@ -437,7 +673,8 @@ const createColorEditor = (themeConfig, presetColors) => {
     if (mapRoot) ui.tabs.updateTabs(null, mapRoot);
   };
 
-  const updateField = (mode, key, result) => {
+  const updateField = (mode, key, result, options = {}) => {
+    const shouldValidate = options.validateKeys?.has(key) ?? false;
     const field = fields[mode].get(key);
     const state = stateFor(mode, key);
     state.pending = false;
@@ -450,18 +687,24 @@ const createColorEditor = (themeConfig, presetColors) => {
 
     if (!state.valid) {
       field.status.textContent = state.error;
-      triggerValidation(field);
+      if (shouldValidate) triggerValidation(field);
       return;
     }
 
     try {
-      const color = new Color(result.color);
-      if (color.alpha < 1) color.alpha = 1;
-      const hex = color.to("srgb").toString({ format: "hex" });
-      field.picker.value = hex;
-      field.swatch.style.backgroundColor = result.color;
-      field.swatch.title = `${_("Resolved color")}: ${result.color}`;
-      field.status.textContent = "";
+      const runtimeColor = toRuntimeColor(result.color);
+      field.picker.value = toPickerColor(result.color);
+      field.swatch.style.backgroundColor = runtimeColor;
+      field.swatch.title = `${_("Resolved color")}: ${runtimeColor}`;
+      if (field.token.derived) {
+        if (result.autoValue)
+          field.input.placeholder = _("Automatic: %s").format(
+            toRuntimeColor(result.autoValue),
+          );
+        field.status.textContent = "";
+      } else {
+        field.status.textContent = "";
+      }
     } catch (error) {
       state.valid = false;
       state.error = _("Resolved color cannot be shown by the picker.");
@@ -469,36 +712,87 @@ const createColorEditor = (themeConfig, presetColors) => {
       field.element.classList.add("cbi-value-error");
       field.status.textContent = state.error;
     }
-    triggerValidation(field);
+    if (shouldValidate) triggerValidation(field);
   };
 
-  const refresh = (mode) =>
-    resolver
-      .resolveMode(mode, valuesForMode(mode))
-      .then((results) => colorLibraryReady.then(() => results))
+  const refresh = (mode, options = {}) => {
+    const validateKeys = options.validateKeys || new Set();
+
+    return colorLibraryReady
+      .then(() => {
+        const automatic = automaticForMode(mode);
+        syncDerivedInitialState(mode, automatic);
+
+        const validationTokens = COLOR_TOKENS.concat(
+          DERIVED_COLOR_TOKENS.filter(
+            ({ key }) => isDerivedOverride(mode, key) && valueFor(mode, key).trim(),
+          ),
+        );
+
+        return resolver
+          .resolveMode(mode, valuesForMode(mode), validationTokens)
+          .then((results) => ({ automatic, results }));
+      })
       .then((results) => {
         COLOR_TOKENS.forEach(({ key }) => {
-          updateField(mode, key, results.get(key));
+          updateField(mode, key, results.results.get(key), { validateKeys });
+        });
+
+        DERIVED_COLOR_TOKENS.forEach(({ key }) => {
+          if (isDerivedOverride(mode, key) && valueFor(mode, key).trim()) {
+            const result = results.results.get(key);
+            updateField(mode, key, {
+              ...result,
+              autoValue: results.automatic?.[key] || "",
+            }, { validateKeys });
+            return;
+          }
+
+          const autoValue = results.automatic?.[key];
+          updateField(mode, key, autoValue
+            ? { valid: true, color: autoValue, autoValue }
+            : {
+                valid: false,
+                error: _("Unable to generate the automatic derived value."),
+              },
+            { validateKeys },
+          );
         });
         applyPreview(mode);
       })
       .catch((error) => {
-        COLOR_TOKENS.forEach(({ key }) => {
+        ALL_COLOR_TOKENS.forEach(({ key }) => {
           updateField(mode, key, {
             valid: false,
             error: error?.message || _("Unable to resolve color expressions."),
-          });
+          }, { validateKeys });
         });
       })
       .finally(() => refreshTabErrors(mode));
+  };
 
-  const schedule = (mode) => {
+  const affectedKeysFor = (key) => {
+    if (!key) return ALL_COLOR_TOKENS.map((token) => token.key);
+    if (isInputToken(key))
+      return COLOR_TOKENS.concat(DERIVED_COLOR_TOKENS).map(
+        (token) => token.key,
+      );
+    return [key];
+  };
+
+  const schedule = (mode, key, options = {}) => {
+    const affectedKeys = affectedKeysFor(key);
+    const validateKeys = new Set(options.validate ? [key].filter(Boolean) : []);
+
     window.clearTimeout(timers[mode]);
-    COLOR_TOKENS.forEach(({ key }) => {
-      const state = stateFor(mode, key);
+    affectedKeys.forEach((affectedKey) => {
+      const state = stateFor(mode, affectedKey);
       state.pending = true;
     });
-    timers[mode] = window.setTimeout(() => refresh(mode), 120);
+    timers[mode] = window.setTimeout(
+      () => refresh(mode, { validateKeys }),
+      120,
+    );
   };
 
   const register = (
@@ -520,7 +814,8 @@ const createColorEditor = (themeConfig, presetColors) => {
     });
     input.addEventListener("input", () => {
       themeConfig[colorOptionName(mode, token.key)] = input.value;
-      schedule(mode);
+      if (token.derived) setDerivedOverride(mode, token.key, Boolean(input.value.trim()));
+      schedule(mode, token.key, { validate: true });
     });
     schedule(mode);
   };
@@ -528,7 +823,8 @@ const createColorEditor = (themeConfig, presetColors) => {
   const validate = (mode, key, value) => {
     if (!value?.trim()) return true;
     const state = stateFor(mode, key);
-    if (state.pending) return _("Color expression is still resolving.");
+    if (state.pending)
+      return state.valid || state.error == null ? true : state.error;
     return state.valid
       ? true
       : state.error || _("Invalid color expression.");
@@ -558,10 +854,17 @@ const createColorEditor = (themeConfig, presetColors) => {
     resolver.destroy();
   };
 
+  const flush = () => {
+    window.clearTimeout(timers.light);
+    window.clearTimeout(timers.dark);
+    return Promise.all([refresh("light"), refresh("dark")]);
+  };
+
   return {
     attach,
     cleanupPreview,
     destroy,
+    flush,
     presetColors,
     register,
     resolvedForMode,
@@ -587,7 +890,12 @@ const renderColorField = function (optionIndex, sectionId, inTable) {
     const editor = this.colorEditor;
     const optionKey = colorOptionName(mode, token.key);
     const presetValue = editor.presetColors?.[optionKey] || "";
-    input.placeholder = presetValue || _("Follow theme stylesheet");
+    element.dataset.auroraColorMode = mode;
+    element.dataset.auroraColorKind = token.derived ? "derived" : "base";
+    element.dataset.auroraColorGroup = token.group || "";
+    input.placeholder = token.derived
+      ? _("Automatic unless overridden")
+      : presetValue || _("Use the active preset value");
 
     const picker = E("input", {
       type: "color",
@@ -615,11 +923,8 @@ const renderColorField = function (optionIndex, sectionId, inTable) {
 
     picker.addEventListener("change", () => {
       try {
-        input.value = new Color(picker.value)
-          .to("oklch")
-          .toString({ precision: 5 });
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.value = picker.value;
+        input.dispatchEvent(new Event("input"));
       } catch (error) {
         input.setCustomValidity(_("Unable to convert the selected color."));
       }
@@ -657,7 +962,7 @@ const addColorInputs = (section, mode, tokens, editor) => {
     option.write = (sectionId, value) => {
       const trimmed = value?.trim();
       if (trimmed) {
-        uci.set("aurora", sectionId, optionKey, trimmed);
+        uci.set("aurora", sectionId, optionKey, toRuntimeColor(trimmed));
       } else {
         uci.unset("aurora", sectionId, optionKey);
       }
@@ -669,19 +974,163 @@ const addColorInputs = (section, mode, tokens, editor) => {
 };
 
 const createColorSections = (section, mode, editor) => {
-  COLOR_GROUPS.forEach((group) => {
-    const tokens = COLOR_TOKENS.filter((token) => token.group === group.key);
-    const sectionValue = section.taboption(
-      mode,
-      form.SectionValue,
-      `_${mode}_${group.key}`,
-      form.NamedSection,
-      "theme",
-      "aurora",
-      group.title,
-      group.description,
+  const baseSection = section.taboption(
+    mode,
+    form.SectionValue,
+    `_${mode}_base_colors`,
+    form.NamedSection,
+    "theme",
+    "aurora",
+    _("Base Colors"),
+    _(
+      "Edit the 10 source colors. Aurora generates hover states, focus rings, status backgrounds, progress colors, and menu overlays from them.",
+    ) + ` ${COLOR_FORMAT_HELP}`,
+  );
+  addColorInputs(baseSection.subsection, mode, COLOR_TOKENS, editor);
+
+  const derivedSection = section.taboption(
+    mode,
+    form.SectionValue,
+    `_${mode}_derived_colors`,
+    form.NamedSection,
+    "theme",
+    "aurora",
+    _("Generated Colors"),
+    _(
+      "These detail colors are computed from the source colors. Leave fields empty to keep them automatic; enter a value only when a specific UI detail needs a manual override.",
+    ) + ` ${COLOR_FORMAT_HELP}`,
+  );
+  addColorInputs(
+    derivedSection.subsection,
+    mode,
+    DERIVED_COLOR_GROUPS.flatMap((group) =>
+      DERIVED_COLOR_TOKENS.filter((token) => token.group === group.key),
+    ),
+    editor,
+  );
+};
+
+const colorGroupFor = (kind, key) =>
+  (kind === "derived" ? DERIVED_COLOR_GROUPS : COLOR_GROUPS).find(
+    (group) => group.key === key,
+  );
+
+const ensureColorGroupStyles = () => {
+  if (document.getElementById("aurora-color-group-styles")) return;
+  document.head.appendChild(
+    E(
+      "style",
+      { id: "aurora-color-group-styles" },
+      `
+.aurora-token-group {
+  border: 1px solid var(--hairline);
+  border-radius: calc(var(--radius-base) * 1.5);
+  margin: 0 0 1rem;
+  overflow: hidden;
+}
+.aurora-token-group[open] {
+  background: var(--surface);
+}
+.aurora-token-group > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  list-style: none;
+  padding: 1rem 1.25rem;
+}
+.aurora-token-group > summary::-webkit-details-marker {
+  display: none;
+}
+.aurora-token-group-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.aurora-token-group-description {
+  color: var(--text-muted);
+  display: block;
+  font-size: .875rem;
+  line-height: 1.45;
+  margin-top: .25rem;
+}
+.aurora-token-group-count {
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: .25rem .625rem;
+}
+.aurora-token-group-body {
+  border-top: 1px solid var(--hairline);
+  padding: 1rem 1.25rem;
+}
+`,
+    ),
+  );
+};
+
+const enhanceColorTokenGroups = (root) => {
+  ensureColorGroupStyles();
+  const rows = Array.from(root.querySelectorAll("[data-aurora-color-group]"));
+  const containers = new Set(rows.map((row) => row.parentElement).filter(Boolean));
+
+  containers.forEach((container) => {
+    if (container.dataset.auroraTokenGroupsEnhanced === "true") return;
+    const children = Array.from(container.children).filter(
+      (child) => child.dataset?.auroraColorGroup,
     );
-    addColorInputs(sectionValue.subsection, mode, tokens, editor);
+    if (children.length === 0) return;
+
+    container.dataset.auroraTokenGroupsEnhanced = "true";
+    let index = 0;
+    while (index < children.length) {
+      const first = children[index];
+      const groupKey = first.dataset.auroraColorGroup;
+      const kind = first.dataset.auroraColorKind;
+      const groupRows = [];
+
+      while (
+        index < children.length &&
+        children[index].dataset.auroraColorGroup === groupKey
+      ) {
+        groupRows.push(children[index]);
+        index += 1;
+      }
+
+      const group = colorGroupFor(kind, groupKey);
+      if (!group) continue;
+
+      const body = E("div", { class: "aurora-token-group-body" });
+      const details = E(
+        "details",
+        { class: "aurora-token-group", open: "" },
+        [
+          E("summary", {}, [
+            E("span", {}, [
+              E("span", { class: "aurora-token-group-title" }, group.title),
+              E(
+                "span",
+                { class: "aurora-token-group-description" },
+                group.description,
+              ),
+            ]),
+            E(
+              "span",
+              { class: "aurora-token-group-count" },
+              _("%d variables").format(groupRows.length),
+            ),
+          ]),
+          body,
+        ],
+      );
+
+      container.insertBefore(details, first);
+      groupRows.forEach((row) => body.appendChild(row));
+    }
   });
 };
 
@@ -875,7 +1324,7 @@ const persistDerivedTokens = (editor) => {
     const resolved = editor.resolvedForMode(mode);
     if (!resolved) return;
     Object.keys(resolved).forEach((key) => {
-      uci.set("aurora", "theme", `${mode}_${key}`, resolved[key]);
+      uci.set("aurora", "theme", `${mode}_${key}`, toRuntimeColor(resolved[key]));
     });
   });
 };
@@ -884,6 +1333,7 @@ const runSavePipeline = function (ev, after) {
   const save = L.bind(function () {
     return colorLibraryReady
       .catch(() => {})
+      .then(() => this.colorEditor?.flush?.())
       .then(() => persistDerivedTokens(this.colorEditor))
       .then(() => this.super("handleSave", [ev]));
   }, this);
@@ -1044,16 +1494,16 @@ return view.extend({
         "button",
         {
           class: "cbi-button cbi-button-apply",
-          title: _("Apply Preset"),
+          title: _("Apply Color Preset"),
           click: ui.createHandlerFn(viewCtx, () => {
             const { presetName, presetLabel } = resolvePresetSelection();
 
-            return ui.showModal(_("Apply Theme Preset"), [
+            return ui.showModal(_("Apply Color Preset"), [
               E(
                 "p",
                 {},
                 _(
-                  "Applying '%s' replaces all light and dark color values. Layout, branding, fonts, assets, navigation, login background, and toolbar settings are preserved. Continue?",
+                  "Applying '%s' replaces the full light and dark color token set, including generated colors. Layout, fonts, branding, uploaded assets, login background, navigation, and toolbar settings stay unchanged. Continue?",
                 ).format(presetLabel),
               ),
               E("div", { class: "right" }, [
@@ -1108,7 +1558,7 @@ return view.extend({
         "button",
         {
           class: "cbi-button cbi-button-apply",
-          title: _("Export Configuration"),
+          title: _("Export All Settings"),
           click: ui.createHandlerFn(viewCtx, () => {
             return L.resolveDefault(callExportConfig(), null)
               .then((res) => {
@@ -1168,7 +1618,7 @@ return view.extend({
         "button",
         {
           class: "cbi-button cbi-button-add",
-          title: _("Import Configuration"),
+          title: _("Import All Settings"),
           click: ui.createHandlerFn(viewCtx, function (ev) {
             const btn = ev.currentTarget || ev.target;
             const originalLabel = btn?.firstChild?.data;
@@ -1193,7 +1643,7 @@ return view.extend({
                       "p",
                       {},
                       _(
-                        "Please upload the Aurora configuration file named 'aurora'. This will overwrite the theme configuration at /etc/config/aurora. Press 'Continue' to apply and reload, or 'Cancel' to abort.",
+                        "Review the uploaded Aurora configuration below. Importing replaces /etc/config/aurora and reloads this page; uploaded image files are not removed.",
                       ),
                     ),
                     E("pre", {}, preview),
@@ -1273,14 +1723,14 @@ return view.extend({
         "button",
         {
           class: "cbi-button cbi-button-reset",
-          title: _("Reset to Defaults"),
+          title: _("Reset All Settings"),
           click: ui.createHandlerFn(viewCtx, () => {
-            return ui.showModal(_("Reset to Defaults"), [
+            return ui.showModal(_("Reset All Settings"), [
               E(
                 "p",
                 {},
                 _(
-                  "Are you sure you want to reset all theme settings (Color, Layout & Typography, Branding) back to the default theme's original configuration? This will revert everything to the default theme's initial state.",
+                  "Reset Aurora settings to the packaged Classic preset, including colors, layout, fonts, branding choices, navigation, and toolbar entries. Uploaded image files stay on disk, but any selected custom assets must be chosen again if they are not in the default preset.",
                 ),
               ),
               E("div", { class: "right" }, [
@@ -1336,7 +1786,7 @@ return view.extend({
           E(
             "span",
             { style: "font-weight: 600; white-space: nowrap;" },
-            _("Preset"),
+            _("Color Preset"),
           ),
           select,
           applyButton,
@@ -1403,9 +1853,9 @@ return view.extend({
 
     const s = m.section(form.NamedSection, "theme", "aurora");
 
-    s.tab("colors", _("Color"));
+    s.tab("colors", _("Colors"));
     s.tab("layout_typography", _("Layout & Typography"));
-    s.tab("icons_branding", _("Branding"));
+    s.tab("icons_branding", _("Branding & Shortcuts"));
 
     const colorSection = s.taboption(
       "colors",
@@ -1431,18 +1881,21 @@ return view.extend({
       "aurora",
       _("Layout"),
       _(
-        "Adjust navigation style, element spacing, corner radius, and page container width.",
+        "Tune the structure of the interface: navigation style, density, corner roundness, and page width.",
       ),
     );
     const structureSubsection = structureSection.subsection;
 
     so = structureSubsection.option(
       form.ListValue,
-      "nav_submenu_type",
-      _("Navigation Submenu Type"),
+      "nav_type",
+      _("Navigation Style"),
+    );
+    so.description = _(
+      "Choose how top navigation expands: a wide mega menu, a compact dropdown, or a sidebar-style panel.",
     );
     so.value("mega-menu", _("Mega Menu"));
-    so.value("boxed-dropdown", _("Boxed Dropdown"));
+    so.value("dropdown", _("Dropdown"));
     so.value("sidebar", _("Sidebar"));
     so.default = "mega-menu";
     so.rmempty = false;
@@ -1452,6 +1905,9 @@ return view.extend({
       "struct_spacing",
       _("Element Spacing"),
     );
+    so.description = _(
+      "Controls the base spacing scale. Lower values make the interface denser; higher values add more breathing room.",
+    );
     so.default = "0.25rem";
     so.placeholder = "0.25rem";
     so.rmempty = false;
@@ -1460,7 +1916,10 @@ return view.extend({
     so = structureSubsection.option(
       form.Value,
       "struct_radius_base",
-      _("Border Radius"),
+      _("Corner Radius"),
+    );
+    so.description = _(
+      "Controls corner roundness for buttons, panels, inputs, and menus.",
     );
     so.default = "0.5rem";
     so.placeholder = "0.5rem";
@@ -1470,7 +1929,10 @@ return view.extend({
     so = structureSubsection.option(
       form.Value,
       "struct_container_max_width",
-      _("Page Container Max Width"),
+      _("Page Width Limit"),
+    );
+    so.description = _(
+      "Limits how wide content can grow on large screens while keeping mobile layouts fluid.",
     );
     so.default = "80rem";
     so.placeholder = "80rem";
@@ -1486,7 +1948,7 @@ return view.extend({
       "aurora",
       _("Font Settings"),
       _(
-        "Sans-serif sets the global UI typeface for all text and headings. Monospace is used for code blocks, inline code, and variable references.",
+        "Choose the UI typeface and the code typeface. Remote font presets are prepared when you save, then cached for the theme to use.",
       ),
     );
     const fontSubsection = fontSection.subsection;
@@ -1510,7 +1972,7 @@ return view.extend({
       const presetOpt = ss.option(
         form.ListValue,
         stackKey,
-        slot === "sans" ? _("Sans-serif Typeface") : _("Monospace Typeface"),
+        slot === "sans" ? _("UI Typeface") : _("Code Typeface"),
       );
       presetOpt.default = themeConfig[stackKey] || defaultFont?.stack || "";
       presetOpt.rmempty = false;
@@ -1659,7 +2121,7 @@ return view.extend({
       "aurora",
       _("Asset Library"),
       _(
-        "Manage image files used by the theme. All files are stored in <code>/www/luci-static/aurora/images/</code>.",
+        "Upload and manage image files used by branding, favicons, app icons, and the login background. Files are stored in <code>/www/luci-static/aurora/images/</code>.",
       ),
     );
     const assetSubsection = assetSection.subsection;
@@ -1964,12 +2426,13 @@ return view.extend({
       "aurora",
       _("Site Branding"),
       _(
-        "Choose the favicon, logo, and login background. Upload images via the Asset Library above.",
+        "Choose which uploaded images the theme uses for the header logo, browser icons, app icons, and login background.",
       ),
     );
     const logoSubsection = logoSection.subsection;
 
-    so = logoSubsection.option(form.ListValue, "logo_svg", _("Logo / Favicon"));
+    so = logoSubsection.option(form.ListValue, "logo_svg", _("Header Logo"));
+    so.description = _("Main logo shown in the theme header and navigation.");
     so.default = "logo.svg";
     so.rmempty = false;
     so.load = makeIconListLoader(isImageFile);
@@ -1980,7 +2443,7 @@ return view.extend({
       _("Favicon (PNG)"),
     );
     so.description = _(
-      "Optional PNG favicon for browsers that do not support SVG favicons.",
+      "Optional PNG favicon for browsers or platforms that prefer PNG icons.",
     );
     so.rmempty = true;
     so.load = makeIconListLoader((icon) => /\.png$/i.test(icon), {
@@ -1992,7 +2455,7 @@ return view.extend({
       "favicon_ico",
       _("Favicon (ICO / Legacy)"),
     );
-    so.description = _("ICO favicon served to legacy browsers as fallback.");
+    so.description = _("ICO favicon used as a legacy browser fallback.");
     so.default = "favicon.ico";
     so.rmempty = false;
     so.load = makeIconListLoader((icon) => /\.ico$/i.test(icon));
@@ -2005,6 +2468,7 @@ return view.extend({
 
     pwaIconSlots.forEach(function ([key, label, defaultVal]) {
       so = logoSubsection.option(form.ListValue, key, label);
+      so.description = _("Icon used by mobile home-screen shortcuts and PWA metadata.");
       so.default = defaultVal;
       so.rmempty = false;
       so.load = makeIconListLoader(
@@ -2017,7 +2481,7 @@ return view.extend({
       "struct_login_bg",
       _("Login Background"),
     );
-    so.description = _("Full-screen background on the login page.");
+    so.description = _("Full-screen login page background. Use a wide image for best results.");
     so.rmempty = true;
     so.load = makeIconListLoader(
       (icon) => isImageFile(icon) && !icon.endsWith(".svg"),
@@ -2084,17 +2548,18 @@ return view.extend({
       form.NamedSection,
       "theme",
       "aurora",
-      _("Floating Toolbar"),
+      _("Shortcut Toolbar"),
+      _("Configure the shortcut toolbar shown along the right edge of the interface."),
     );
     const toolbarSubsection = toolbarSection.subsection;
 
     so = toolbarSubsection.option(
       form.Flag,
       "toolbar_enabled",
-      _("Enable Floating Toolbar"),
+      _("Show Shortcut Toolbar"),
     );
     so.description = _(
-      "Enable or disable the floating toolbar on the right side of the screen.",
+      "Show or hide the shortcut toolbar on the right side of the screen.",
     );
     so.default = "1";
     so.rmempty = false;
@@ -2104,8 +2569,8 @@ return view.extend({
       "_toolbar_items",
       form.GridSection,
       "toolbar_item",
-      _("Toolbar Buttons"),
-      _("Add, remove, and drag to reorder toolbar buttons."),
+      _("Toolbar Shortcuts"),
+      _("Add shortcuts, choose icons, and drag rows to control their order."),
     );
     so.depends("toolbar_enabled", "1");
     const toolbarGrid = so.subsection;
@@ -2119,17 +2584,17 @@ return view.extend({
     so.rmempty = false;
     so.editable = true;
 
-    so = toolbarGrid.option(form.Value, "title", _("Button Title"));
+    so = toolbarGrid.option(form.Value, "title", _("Shortcut Label"));
     so.rmempty = false;
     so.placeholder = _("e.g., System Settings");
     so.validate = (section_id, value) =>
-      !value?.trim() ? _("Button title cannot be empty") : true;
+      !value?.trim() ? _("Shortcut label cannot be empty") : true;
 
-    so = toolbarGrid.option(form.Value, "url", _("Target URL"));
+    so = toolbarGrid.option(form.Value, "url", _("Shortcut URL"));
     so.rmempty = false;
     so.placeholder = "/cgi-bin/luci/admin/...";
     so.validate = (section_id, value) =>
-      !value?.trim() ? _("URL cannot be empty") : true;
+      !value?.trim() ? _("Shortcut URL cannot be empty") : true;
 
     so = toolbarGrid.option(form.ListValue, "icon", _("Icon"));
     so.rmempty = false;
@@ -2137,10 +2602,11 @@ return view.extend({
       empty: [["", _("(No icons uploaded)")]],
     });
     so.validate = (section_id, value) =>
-      !value?.trim() ? _("Please select an icon") : true;
+      !value?.trim() ? _("Choose an icon for this shortcut") : true;
 
     return m.render().then((mapNode) => {
       colorEditor.attach();
+      enhanceColorTokenGroups(mapNode);
 
       const updateVersionLabel = (label, hasUpdate) => {
         if (!label || !hasUpdate) return;

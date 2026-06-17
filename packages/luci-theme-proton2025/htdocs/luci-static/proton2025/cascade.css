@@ -4238,6 +4238,7 @@ body[data-page^="admin-status"] .cbi-section>div>div[style*="display:grid"]>.ifa
     border-radius: var(--proton-radius-sm);
     padding: 8px 12px;
     font-size: 12px;
+    line-height: 1.45;
     color: var(--proton-fg);
     box-shadow: var(--proton-shadow-md);
     max-width: 300px;
@@ -4264,8 +4265,14 @@ body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:gri
     top: calc(100% + 8px);
     bottom: auto;
     transform: translateX(-50%);
-    max-width: min(300px, calc(100vw - 32px));
-    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip {
+        width: min(280px, calc(100vw - 32px));
+        min-width: min(220px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+    }
 }
 
 /* =====================================================
@@ -14084,4 +14091,64 @@ body[data-page*="mihomo"] [style*="border: 2px solid #0066cc"] .cbi-section-desc
 :root[data-theme="light"] .ace-tomorrow-night-bright .ace_invalid.ace_deprecated {
     color: #ffffff !important;
     background-color: #8959a8 !important;
+}
+
+/* =====================================================
+   Issue #38: UI overlap fixes
+   ===================================================== */
+
+/* Long DHCPv6 identifiers (DUID / Client ID / IAID) must not bleed into the
+   next CBI row. Use border-box sizing and clip the inline value inside the
+   control instead of allowing it to paint outside the form field. */
+#modal_overlay input[id*=".clientid"],
+#modal_overlay input[id*=".duid"],
+#modal_overlay input[id*=".iaid"],
+body[data-page="admin-network-network"] input[id*=".clientid"],
+body[data-page="admin-network-network"] input[id*=".duid"],
+body[data-page="admin-network-network"] input[id*=".iaid"] {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+}
+
+#modal_overlay .cbi-value-field:has(input[id*=".clientid"]),
+#modal_overlay .cbi-value-field:has(input[id*=".duid"]),
+#modal_overlay .cbi-value-field:has(input[id*=".iaid"]),
+body[data-page="admin-network-network"] .cbi-value-field:has(input[id*=".clientid"]),
+body[data-page="admin-network-network"] .cbi-value-field:has(input[id*=".duid"]),
+body[data-page="admin-network-network"] .cbi-value-field:has(input[id*=".iaid"]) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Port status cards use overflow:hidden globally for rounded card corners;
+   that clips LuCI .cbi-tooltip and can place it under adjacent cards. On the
+   status overview page, allow tooltips to escape and lift the hovered card
+   above neighbouring stacking contexts. */
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"] {
+    overflow: visible !important;
+}
+
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox {
+    position: relative;
+    overflow: visible !important;
+    z-index: 1;
+}
+
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox:hover,
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox:focus-within {
+    z-index: 10020;
+}
+
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip-container {
+    position: relative;
+    z-index: 10021;
+}
+
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip {
+    z-index: 10022;
 }
