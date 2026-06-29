@@ -14152,3 +14152,93 @@ body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:gri
 body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip {
     z-index: 10022;
 }
+
+/* =====================================================
+   luci-app-passwall2 — Modal popups
+   The app ships these dialogs with a hard-coded `background: white`
+   and light-grey borders, which renders as a see-through / mismatched
+   box on the Proton theme. Give them the theme's tinted gradient
+   surface (same navy/violet shade as the page) so they sit opaque and
+   on-brand instead of looking flat near-black.
+   (Node List → "Add the node via the link" / "Reassign Group",
+    Global → backup upload dialog.)
+   ===================================================== */
+#add_link_div,
+#reassign_group_div,
+.up-modal-content {
+    background: var(--proton-bg) !important;
+    color: var(--proton-fg);
+    border: 1px solid var(--proton-border) !important;
+    border-radius: var(--proton-radius) !important;
+    box-shadow: var(--proton-shadow-lg) !important;
+}
+
+#add_link_div h3,
+#reassign_group_div h3,
+.up-modal-content h3 {
+    color: var(--proton-fg);
+    background: transparent !important;
+}
+
+#nodes_link {
+    background: var(--proton-bg-secondary) !important;
+    color: var(--proton-fg);
+    border: 1px solid var(--proton-border) !important;
+    border-radius: var(--proton-radius-sm) !important;
+}
+
+#nodes_link_text {
+    color: var(--proton-danger) !important;
+}
+
+/* =====================================================
+   luci-app-passwall2 — Tame the bright reds
+   The app scatters hard-coded bright `red` / `#fb6340` accents via
+   legacy <font color="red">, inline `style="color:red"`, the `.red`
+   status class and the `.dl-remove` (×) button. Remap them all to the
+   theme's softer danger colour so they match the rest of the UI
+   (same colour the "Add the node via the link" hint already uses).
+   Scoped to passwall2 pages so other apps are untouched.
+   ===================================================== */
+body[data-page^="admin-services-passwall2"] font[color="red"],
+body[data-page^="admin-services-passwall2"] [style*="color: red"],
+body[data-page^="admin-services-passwall2"] [style*="color:red"],
+body[data-page^="admin-services-passwall2"] .red,
+body[data-page^="admin-services-passwall2"] .dl-remove {
+    color: var(--proton-danger) !important;
+}
+
+/* =====================================================
+   luci-app-passwall2 — Node List table frame
+   The nodes section renders as a standard `.cbi-section` card, so its
+   1px border + shadow draws a redundant frame around the whole table
+   area inside each group tab (Default, …). The table already has its
+   own rounded surface, so drop the outer card chrome and let it stand
+   alone.
+   ===================================================== */
+#cbi-passwall2-nodes {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Port/Network status (overview): each box holds two sibling
+   .cbi-tooltip-container elements (the zone-badge strip and the
+   ▲/▼ TX/RX byte counters), both pinned to the same z-index. The
+   hovered popup is dropped below its trigger and lands over the
+   sibling counters, which — being later in the DOM at an equal
+   z-index — bleed on top of it. Lift the actively-hovered trigger
+   above its siblings so its popup wins, and make the popup fully
+   opaque so nothing shows through. */
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip-container:hover {
+    z-index: 10030;
+}
+
+body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip {
+    background: rgb(20, 25, 35);
+}
+
+:root[data-theme="light"] body[data-page="admin-status-overview"] .cbi-section>div>div[style*="display:grid"]>.ifacebox .cbi-tooltip {
+    background: rgb(255, 255, 255);
+}
