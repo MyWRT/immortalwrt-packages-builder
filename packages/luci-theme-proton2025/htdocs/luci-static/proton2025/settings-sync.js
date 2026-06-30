@@ -21,9 +21,11 @@
   const SETTINGS_MAP = {
     "proton-theme-mode": "mode",
     "proton-accent-color": "accent",
+    "proton-accent-custom": "accent_custom",
     "proton-zoom": "zoom",
     "proton-transparency": "transparency",
     "proton-border-radius": "border_radius",
+    "proton-tab-outline": "tab_outline",
     "proton-animations": "animations",
     "proton-services-widget-enabled": "services_widget",
     "proton-temp-widget-enabled": "temp_widget",
@@ -56,6 +58,7 @@
       "table_wrap",
       "log_highlight",
       "custom_font",
+      "tab_outline",
     ];
 
     if (booleanOptions.includes(uciName)) {
@@ -78,6 +81,7 @@
       "table_wrap",
       "log_highlight",
       "custom_font",
+      "tab_outline",
     ];
 
     if (booleanOptions.includes(uciName)) {
@@ -187,9 +191,12 @@
 
     if (!hasPendingChanges()) return;
 
+    // Keep the pending changes queued (persisted) until the save is
+    // *confirmed*. If we cleared them up front and the page navigated
+    // mid-save, the next page would see no pending changes, run its UCI
+    // sync against not-yet-committed data, and clobber the new value
+    // (e.g. a freshly chosen custom accent reverting on navigation).
     const changes = { ...pendingChanges };
-    pendingChanges = {};
-    persistPendingChanges();
 
     try {
       const result = await callSettingsRpc("setSettings", {
@@ -204,11 +211,17 @@
 
         throw new Error("Settings save was not confirmed by ubus");
       }
+
+      // Confirmed — drop only the keys we saved (and only if they weren't
+      // changed again meanwhile).
+      for (const k of Object.keys(changes)) {
+        if (pendingChanges[k] === changes[k]) delete pendingChanges[k];
+      }
+      persistPendingChanges();
     } catch (err) {
       console.warn("[Proton2025] Failed to save to UCI:", err);
-      // Re-queue failed changes
-      Object.assign(pendingChanges, changes);
-      persistPendingChanges();
+      // Leave the pending changes in place so they are retried on the
+      // next page load (and guard that page's sync in the meantime).
     }
   }
 
@@ -243,12 +256,34 @@
       // Set flag to prevent sync loop
       isSyncingFromUci = true;
 
+      const localAccent = localStorage.getItem("proton-accent-color");
+
       for (const [uciName, uciValue] of Object.entries(settings)) {
         const localKey = UCI_TO_LOCAL[uciName];
         if (!localKey) continue;
 
         const localValue = uciToLocal(uciName, uciValue);
         const currentLocal = localStorage.getItem(localKey);
+
+        // Never let a stale/uncommitted UCI value clobber a deliberately
+        // chosen local "custom" accent. If UCI hasn't caught up yet, keep
+        // the local choice and re-push it to UCI so it self-heals. This
+        // fixes the custom accent reverting to grey ("default") after
+        // navigating to another page.
+        if (localAccent === "custom") {
+          if (uciName === "accent" && localValue !== "custom") {
+            pendingChanges.accent = "custom";
+            const cu = localStorage.getItem("proton-accent-custom");
+            if (cu) pendingChanges.accent_custom = cu;
+            persistPendingChanges();
+            scheduleSaveToUci();
+            continue;
+          }
+          if (uciName === "accent_custom") {
+            // Keep whatever hex the user picked locally.
+            continue;
+          }
+        }
 
         // UCI takes precedence - update localStorage if different
         if (currentLocal !== localValue) {
@@ -305,9 +340,11 @@
       const defaults = {
         "proton-theme-mode": "auto",
         "proton-accent-color": "blue",
+        "proton-accent-custom": "#5e9eff",
         "proton-zoom": "100",
         "proton-transparency": "true",
         "proton-border-radius": "default",
+        "proton-tab-outline": "false",
         "proton-animations": "true",
         "proton-services-widget-enabled": "true",
         "proton-temp-widget-enabled": "true",

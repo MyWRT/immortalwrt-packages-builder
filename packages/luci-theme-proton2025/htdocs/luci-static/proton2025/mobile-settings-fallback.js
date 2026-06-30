@@ -4,9 +4,11 @@
     var LOCAL_TO_UCI = {
         "proton-theme-mode": "mode",
         "proton-accent-color": "accent",
+        "proton-accent-custom": "accent_custom",
         "proton-zoom": "zoom",
         "proton-transparency": "transparency",
         "proton-border-radius": "border_radius",
+        "proton-tab-outline": "tab_outline",
         "proton-animations": "animations",
         "proton-services-widget-enabled": "services_widget",
         "proton-temp-widget-enabled": "temp_widget",
@@ -92,6 +94,27 @@
 
         if (el.id === "proton-login-animation-select") {
             return "proton-login-animation";
+        }
+
+        // The custom-accent colour picker and hex field share the
+        // "Accent Color" row, so the title-based lookup below would
+        // mis-map them to proton-accent-color and store a raw hex there
+        // (which then falls back to the grey/default accent). Map them
+        // explicitly: the picker/hex → the custom hex, the select → mode.
+        if (
+            el.id === "proton-accent-custom-color" ||
+            el.id === "proton-accent-custom-hex"
+        ) {
+            return "proton-accent-custom";
+        }
+        if (el.id === "proton-accent-select") {
+            return "proton-accent-color";
+        }
+
+        // The tab-outline checkbox lives in the "Border Radius" row, so
+        // the title lookup would mis-map it; key it explicitly.
+        if (el.id === "proton-tab-outline-check") {
+            return "proton-tab-outline";
         }
 
         return TITLE_TO_KEY[getTitle(el)] || "";

@@ -6,7 +6,7 @@
 
 'use strict';
 
-import { readfile, lsdir } from 'fs';
+import { readfile, lsdir, realpath } from 'fs';
 
 // Storage for peak temperatures (persists while rpcd is running)
 let peakTemps = {};
@@ -34,47 +34,30 @@ function findDirs(basePath, prefix) {
 // Get all temperature sensors
 function getSensors() {
 	let sensors = [];
-	
-	// === 1. Read thermal_zone sensors ===
-	let thermalZones = findDirs('/sys/class/thermal', 'thermal_zone');
-	
-	for (let zonePath in thermalZones) {
-		let temp = readFileContent(zonePath + '/temp');
-		if (temp == null) continue;
-		
-		let tempValue = +temp;
-		if (tempValue != tempValue) continue; // NaN check
-		
-		let type = readFileContent(zonePath + '/type') || 'thermal';
-		
-		// Update peak temperature
-		let key = zonePath;
-		if (peakTemps[key] == null || tempValue > peakTemps[key]) {
-			peakTemps[key] = tempValue;
-		}
-		
-		push(sensors, {
-			name: type,
-			temp: tempValue,
-			peak: peakTemps[key],
-			path: zonePath,
-			source: 'thermal_zone'
-		});
-	}
-	
-	// === 2. Read hwmon sensors ===
+
+	// Prefer hwmon sensors and add thermal_zone sensors only when they are
+	// not already represented by an hwmon device. This follows the same
+	// principle as luci-app-temp-status and avoids temperature based dedup.
+	let hwmonDeviceIds = {};
+	let hwmonPathIds = {};
+
+	// === 1. Read hwmon sensors ===
 	let hwmonDirs = findDirs('/sys/class/hwmon', 'hwmon');
 	
 	for (let hwmonPath in hwmonDirs) {
 		let deviceName = readFileContent(hwmonPath + '/name') || 'hwmon';
-		
+		let hwmonDevId = realpath(hwmonPath + '/device');
+		let hwmonPathId = realpath(hwmonPath);
+		let hasTempSensor = false;
+
 		// Find all temp*_input files
 		let files = lsdir(hwmonPath);
 		if (!files) continue;
-		
+
 		for (let file in files) {
-			// Check if file matches temp*_input pattern
-			if (index(file, 'temp') != 0 || index(file, '_input') < 0)
+			// Check if file exactly matches temp*_input.
+			// Do not accept files such as temp1_input_alarm.
+			if (!match(file, /^temp[0-9]+_input$/))
 				continue;
 			
 			let tempPath = hwmonPath + '/' + file;
@@ -92,36 +75,79 @@ function getSensors() {
 			let label = readFileContent(labelPath);
 			
 			let sensorName = label || deviceName;
-			
-			// Check for duplicates with thermal_zone
-			let isDuplicate = false;
-			for (let s in sensors) {
-				if (s.source == 'thermal_zone') {
-					let diff = s.temp - tempValue;
-					if (diff < 0) diff = -diff;
-					if (diff < 2000) {
-						isDuplicate = true;
-						break;
-					}
-				}
+
+			// Update peak temperature
+			let key = tempPath;
+			if (peakTemps[key] == null || tempValue > peakTemps[key]) {
+				peakTemps[key] = tempValue;
 			}
-			
-			if (!isDuplicate) {
-				// Update peak temperature
-				let key = tempPath;
-				if (peakTemps[key] == null || tempValue > peakTemps[key]) {
-					peakTemps[key] = tempValue;
+
+			push(sensors, {
+				name: sensorName,
+				temp: tempValue,
+				peak: peakTemps[key],
+				path: tempPath,
+				source: 'hwmon'
+			});
+
+			hasTempSensor = true;
+		}
+
+		if (hasTempSensor) {
+			if (hwmonDevId != null)
+				hwmonDeviceIds[hwmonDevId] = true;
+
+			if (hwmonPathId != null)
+				hwmonPathIds[hwmonPathId] = true;
+		}
+	}
+
+	// === 2. Read thermal_zone sensors ===
+	let thermalZones = findDirs('/sys/class/thermal', 'thermal_zone');
+
+	for (let zonePath in thermalZones) {
+		let zonePathId = realpath(zonePath);
+		let zoneDevId = realpath(zonePath + '/device');
+		let isDuplicate =
+			(zonePathId != null && hwmonDeviceIds[zonePathId] == true) ||
+			(zoneDevId != null && hwmonDeviceIds[zoneDevId] == true);
+
+		// Some thermal-zone backed hwmon nodes are exposed below the
+		// thermal_zone sysfs path itself. Catch that form as well, even
+		// when the hwmon device symlink is missing or not comparable.
+		if (!isDuplicate && zonePathId != null) {
+			for (let hwmonPathId in hwmonPathIds) {
+				if (hwmonPathId == zonePathId || index(hwmonPathId, zonePathId + '/') == 0) {
+					isDuplicate = true;
+					break;
 				}
-				
-				push(sensors, {
-					name: sensorName,
-					temp: tempValue,
-					peak: peakTemps[key],
-					path: tempPath,
-					source: 'hwmon'
-				});
 			}
 		}
+
+		if (isDuplicate)
+			continue;
+
+		let temp = readFileContent(zonePath + '/temp');
+		if (temp == null) continue;
+
+		let tempValue = +temp;
+		if (tempValue != tempValue) continue; // NaN check
+
+		let type = readFileContent(zonePath + '/type') || 'thermal';
+
+		// Update peak temperature
+		let key = zonePath;
+		if (peakTemps[key] == null || tempValue > peakTemps[key]) {
+			peakTemps[key] = tempValue;
+		}
+
+		push(sensors, {
+			name: type,
+			temp: tempValue,
+			peak: peakTemps[key],
+			path: zonePath,
+			source: 'thermal_zone'
+		});
 	}
 	
 	return { sensors: sensors };
