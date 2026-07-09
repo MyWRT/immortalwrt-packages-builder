@@ -96,9 +96,16 @@ table.table,
 
     > input[type="text"],
     > input[type="password"],
-    > select,
-    > .cbi-dropdown:not(.btn):not(.cbi-button) {
+    select,
+    .cbi-dropdown:not(.btn):not(.cbi-button) {
       @apply w-full;
+    }
+
+    /* Widgets are nested (td > div > div > widget), so the fixed/min widths
+       from _select.css/_dropdown.css must yield to the column width here. */
+    select,
+    .cbi-dropdown:not(.btn):not(.cbi-button) {
+      @apply min-w-fit;
     }
 
     &.cbi-value-field {
@@ -143,6 +150,22 @@ table.table,
     .td {
       @apply flex-[1_1_50%] border-0 px-1 py-1 text-sm;
       @apply before:mb-1 before:block before:text-xs before:font-semibold;
+
+      &.cbi-value-field {
+        /* Mobile cards (bootstrap-style): value fields stack one per row —
+           the row title and long match-rule cells get the full width — while
+           display-only widgets below pair up two per row. */
+        @apply mb-1 basis-full self-start text-left;
+
+        &[data-widget="CBI.DummyValue"],
+        &[data-widget="CBI.Button"],
+        &[data-widget="CBI.FlagValue"],
+        &[data-widget="dvalue"],
+        &[data-widget="button"],
+        &[data-widget="fvalue"] {
+          @apply basis-1/2;
+        }
+      }
 
       &.cbi-section-actions {
         @apply flex-[0_0_100%];
