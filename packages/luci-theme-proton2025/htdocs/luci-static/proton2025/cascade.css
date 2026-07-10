@@ -1083,6 +1083,13 @@ a:active {
     display: flex;
     flex: 1 0 auto;
     min-height: 0;
+    /* Явно поверх футера: у футера backdrop-filter создаёт stacking
+       context, и открытая выпадашка «Применить ▾» у нижнего края
+       страницы иначе рисуется ПОД ним (Chrome к тому же нестабильно
+       комбинирует backdrop-filter с fixed-фоном — меню «проявлялось»
+       только при наведении на футер). */
+    position: relative;
+    z-index: 1;
 }
 
 /* =====================================================
@@ -1181,11 +1188,20 @@ a:active {
     max-width: var(--proton-page-max-width);
     margin: 0 auto;
     padding: 24px var(--proton-page-gutter);
-    padding-bottom: 120px;
+    /* Небольшой нижний отступ вместо прежних 120px, которые оставляли
+       огромную пустую полосу под контентом на каждой странице. Запас был
+       нужен выпадашке «Применить ▾»: при overflow-y:auto она у нижнего
+       края вызывала внутренний скролл — поэтому ниже overflow переведён
+       в clip/visible (clip не создаёт scroll-контейнер), и меню просто
+       ложится поверх футера, как в bootstrap. */
+    padding-bottom: 40px;
     min-width: 0;
     box-sizing: border-box;
+    /* fallback для старых браузеров без overflow: clip */
     overflow-x: hidden;
     overflow-y: auto;
+    overflow-x: clip;
+    overflow-y: visible;
     animation: fadeIn 0.4s ease-out;
 }
 
@@ -1215,7 +1231,14 @@ body>.luci {
     border-top: 1px solid var(--proton-border);
     color: var(--proton-muted);
     font-size: 12px;
-    margin-top: 60px;
+    /* Без margin-top: прежние 60px вместе со 120px нижнего паддинга
+       #maincontent давали ~200px пустоты под контентом каждой страницы.
+       Отступ от контента задаёт padding-bottom #maincontent. */
+    margin-top: 0;
+    /* Ниже контента (см. z-index у #maincontainer): выпадашки у нижнего
+       края страницы должны ложиться поверх футера. */
+    position: relative;
+    z-index: 0;
 }
 
 .proton-footer a,
@@ -4031,7 +4054,11 @@ table.assoclist td[data-title="Скорость приёма / отправки"
     display: block;
     position: absolute;
     left: 0;
-    right: 0;
+    /* Не right: 0 — оно прибивало ширину меню к ширине закрытого контрола,
+       и длинные пункты (например, URL-ы зеркал в OpenClash) обрезались.
+       Меню растёт по самому широкому пункту, но не уже контрола
+       (min-width) и не безгранично (max-width). */
+    right: auto;
     background: #1e2530 !important;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: var(--proton-radius-sm);
@@ -4040,7 +4067,8 @@ table.assoclist td[data-title="Скорость приёма / отправки"
     max-height: 300px;
     overflow-y: auto;
     min-width: 100%;
-    width: auto;
+    width: max-content;
+    max-width: min(480px, calc(100vw - 40px));
 }
 
 :root[data-theme="light"] .cbi-dropdown[open]>ul.dropdown {
@@ -4070,6 +4098,14 @@ table.assoclist td[data-title="Скорость приёма / отправки"
     border-bottom: 1px solid var(--proton-border-light);
     transition: var(--proton-transition);
     background: #1e2530 !important;
+    /* Базовый .cbi-dropdown>ul>li режет текст в одну строку с многоточием —
+       это для закрытого контрола. В открытом меню пункты видны целиком:
+       URL-ы и прочие «слова» без пробелов переносятся, когда меню упирается
+       в max-width, а не обрезаются. */
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
 }
 
 .cbi-dropdown[open]>ul.dropdown>li .hide-open {
@@ -5684,9 +5720,14 @@ body.modal-overlay-active #modal_overlay {
     /* Выпадающие меню внутри модального окна */
     #modal_overlay>.modal .cbi-dropdown[open]>ul.dropdown {
         /* LuCI может выставлять inline left/right (иногда отрицательные) для "вписывания" в viewport.
-           В модальном окне на мобиле это даёт заметный горизонтальный сдвиг, поэтому фиксируем по ширине поля. */
+           В модальном окне на мобиле это даёт заметный горизонтальный сдвиг, поэтому фиксируем по ширине поля.
+           width: auto обязателен: базовое правило теперь задаёт width: max-content,
+           а при заданных left+right+width право игнорируется — меню снова
+           вылезало бы за поле. */
         left: 0 !important;
         right: 0 !important;
+        width: auto !important;
+        max-width: none !important;
         z-index: 10002;
     }
 
