@@ -6,10 +6,102 @@
 
 'use strict';
 
-import { readfile, lsdir, realpath } from 'fs';
+import { readfile, lsdir, realpath, stat, popen } from 'fs';
+import { cursor } from 'uci';
 
 // Storage for peak temperatures (persists while rpcd is running)
 let peakTemps = {};
+
+// --- Optional integration: luci-app-5gmodem modem temperature ---------------
+// When the 5gmodem package is installed AND the user ticked the theme setting
+// (proton2025.settings.modem_temp='1'), expose the active modem's temperature
+// as one more sensor, so it shows up in the same router temperature block.
+const MODEM_MARKER = '/usr/share/5gmodem/5gmodem.sh';
+const MODEM_CACHE  = '/tmp/5gmodem_metrics.json';
+
+function modemInstalled() {
+	return stat(MODEM_MARKER) != null;
+}
+
+function modemTempEnabled() {
+	let uci = cursor();
+	uci.load('proton2025');
+	return uci.get('proton2025', 'settings', 'modem_temp') == '1';
+}
+
+// Short model tag for the compact temperature block (the widget has little
+// horizontal room). Take the first whitespace token that contains a digit -
+// that is the model number - and drop dashes:
+//   "Fibocom FM350-GL"        -> "FM350GL"
+//   "Telit LM960"             -> "LM960"
+//   "Fibocom L850 LTE Module" -> "L850"
+function shortModel(name) {
+	let toks = split(trim(name), /[ \t]+/);
+	for (let tk in toks) {
+		if (match(tk, /[0-9]/))
+			return replace(tk, /-/g, '');
+	}
+	return trim(name);
+}
+
+// Human name of the ACTIVE modem, from the app's uci: the active USB path
+// (@5gmodem[0].active_modem) points to the m_<path> section whose .model was
+// resolved by the app's AT poll. Shortened for the widget; "Modem" as fallback.
+function modemLabel() {
+	let uci = cursor();
+	uci.load('5gmodem');
+	let amp = null;
+	uci.foreach('5gmodem', '5gmodem', function(s) {
+		if (s.active_modem) amp = s.active_modem;
+	});
+	if (amp != null) {
+		let sec = 'm_' + replace(amp, /[^A-Za-z0-9]/g, '_');
+		let model = uci.get('5gmodem', sec, 'model');
+		if (model != null && length(trim(model)) > 0)
+			return shortModel(model);
+	}
+	return 'Modem';
+}
+
+// Read the modem temperature sensor from the app's metrics cache. The cache is
+// written by `5gmodem.sh cached`; we also kick a THROTTLED, non-blocking refresh
+// (cached 30 -> re-reads the modem at most every 30s, instant if fresh) so the
+// value keeps updating while the status page is open, without ever stalling this
+// call. The refresh is backgrounded WITH its fds redirected (see rpcd fd-detach
+// rule) so rpcd does not wait on it.
+function getModemSensor() {
+	if (!modemTempEnabled() || !modemInstalled())
+		return null;
+
+	let h = popen(MODEM_MARKER + ' cached 30 >/dev/null 2>&1 &');
+	if (h) h.close();
+
+	let raw = readfile(MODEM_CACHE);
+	if (!raw) return null;
+
+	let j;
+	try { j = json(raw); } catch (e) { return null; }
+	if (!j || !j.mtemp) return null;
+
+	// mtemp looks like "54.0 &deg;C" - pull the leading number, to milli-degC.
+	let m = match(j.mtemp, /-?[0-9]+(\.[0-9]+)?/);
+	if (!m) return null;
+	let c = +m[0];
+	if (c != c) return null;             // NaN guard
+
+	let milli = int(c * 1000);
+	let key = MODEM_CACHE;
+	if (peakTemps[key] == null || milli > peakTemps[key])
+		peakTemps[key] = milli;
+
+	return {
+		name: modemLabel(),
+		temp: milli,
+		peak: peakTemps[key],
+		path: 'modem:5gmodem',
+		source: '5gmodem'
+	};
+}
 
 // Read file content safely, return null on error
 function readFileContent(path) {
@@ -149,7 +241,12 @@ function getSensors() {
 			source: 'thermal_zone'
 		});
 	}
-	
+
+	// === 3. Optional: active modem temperature (luci-app-5gmodem) ===
+	let modemSensor = getModemSensor();
+	if (modemSensor != null)
+		push(sensors, modemSensor);
+
 	return { sensors: sensors };
 }
 
@@ -157,6 +254,12 @@ function getSensors() {
 function resetPeaks() {
 	peakTemps = {};
 	return { success: true };
+}
+
+// Which optional integrations are available on this router. The settings UI
+// uses this to show the matching toggle ONLY when the backing package exists.
+function getIntegrations() {
+	return { modem: modemInstalled() };
 }
 
 // RPC method definitions
@@ -169,6 +272,11 @@ const methods = {
 	resetPeaks: {
 		call: function() {
 			return resetPeaks();
+		}
+	},
+	getIntegrations: {
+		call: function() {
+			return getIntegrations();
 		}
 	}
 };

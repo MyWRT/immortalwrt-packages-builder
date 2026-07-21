@@ -30,6 +30,8 @@ const VALID_OPTIONS = {
 	animations: { default: '1', values: ['0', '1'] },
 	services_widget: { default: '1', values: ['0', '1'] },
 	temp_widget: { default: '1', values: ['0', '1'] },
+	// показывать температуру модема в блоке температуры (нужен luci-app-5gmodem)
+	modem_temp: { default: '0', values: ['0', '1'] },
 	services_log: { default: '0', values: ['0', '1'] },
 	table_wrap: { default: '1', values: ['0', '1'] },
 	log_highlight: { default: '1', values: ['0', '1'] },

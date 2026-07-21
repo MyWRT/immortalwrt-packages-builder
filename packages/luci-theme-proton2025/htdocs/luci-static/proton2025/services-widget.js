@@ -673,6 +673,39 @@
       const deepCheckEnabled =
         this._safeGetItem("proton-services-deep-check") === "true";
 
+      // Опциональная интеграция: температура модема (нужен luci-app-5gmodem).
+      // Тумблер показываем ТОЛЬКО если пакет установлен - спрашиваем бекенд.
+      const modemTempEnabled =
+        this._safeGetItem("proton-modem-temp") === "true";
+      let modemAvailable = false;
+      try {
+        const rpc = this._getRpcMethods();
+        if (rpc && rpc.getIntegrations) {
+          const integ = await rpc.getIntegrations();
+          modemAvailable = !!(integ && integ.modem);
+        }
+      } catch (e) {
+        /* нет бекенда/интеграции - просто не показываем тумблер */
+      }
+      const modemToggleHtml = modemAvailable
+        ? `
+                        <label class="proton-widget-toggle">
+                            <span class="proton-widget-toggle-info">
+                                <span class="proton-widget-toggle-icon">📶</span>
+                                <span class="proton-widget-toggle-name">${this._t(
+                                  "Modem Temperature",
+                                )}</span>
+                                <span class="proton-widget-toggle-desc">${this._t(
+                                  "Show the modem temperature in the temperature block",
+                                )}</span>
+                            </span>
+                            <input type="checkbox" id="proton-modem-temp-toggle" ${
+                              modemTempEnabled ? "checked" : ""
+                            }>
+                            <span class="proton-widget-toggle-slider"></span>
+                        </label>`
+        : "";
+
       const modal = document.createElement("div");
       modal.className = "proton-service-modal";
       modal.innerHTML = `
@@ -696,7 +729,7 @@
                               tempWidgetEnabled ? "checked" : ""
                             }>
                             <span class="proton-widget-toggle-slider"></span>
-                        </label>
+                        </label>${modemToggleHtml}
                         <label class="proton-widget-toggle">
                             <span class="proton-widget-toggle-info">
                                 <span class="proton-widget-toggle-icon">🔬</span>
@@ -734,6 +767,19 @@
             `;
 
       document.body.appendChild(modal);
+
+      // Тумблер температуры модема: пишем в localStorage; settings-sync сам
+      // сохранит его в uci proton2025.modem_temp (ключ есть в SETTINGS_MAP), а
+      // бекенд getSensors на следующем опросе добавит/уберёт датчик модема.
+      const modemToggle = modal.querySelector("#proton-modem-temp-toggle");
+      if (modemToggle) {
+        modemToggle.addEventListener("change", () => {
+          this._safeSetItem(
+            "proton-modem-temp",
+            modemToggle.checked ? "true" : "false",
+          );
+        });
+      }
 
       // Обработчик переключателя виджета температуры
       const tempToggle = modal.querySelector("#proton-temp-widget-toggle");
@@ -2313,6 +2359,14 @@
             object: "luci.proton-temp",
             method: "getSensors",
             expect: { sensors: [] },
+          }),
+          // Какие опциональные интеграции доступны (напр. модем 5gmodem) -
+          // используется, чтобы показать тумблер температуры модема только
+          // когда установлен luci-app-5gmodem.
+          getIntegrations: L.rpc.declare({
+            object: "luci.proton-temp",
+            method: "getIntegrations",
+            expect: {},
           }),
           // Fallback: стандартный file.list для проверки директорий
           list: L.rpc.declare({

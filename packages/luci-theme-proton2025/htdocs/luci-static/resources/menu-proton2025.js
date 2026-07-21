@@ -2033,6 +2033,7 @@ return baseclass.extend({
         tableWrap: localStorage.getItem("proton-table-wrap") !== "false",
         logHighlight: localStorage.getItem("proton-log-highlight") !== "false",
         customFont: localStorage.getItem("proton-custom-font") !== "false",
+        modemTemp: localStorage.getItem("proton-modem-temp") === "true",
       };
 
       // Helper function for translations
@@ -2306,6 +2307,25 @@ return baseclass.extend({
               </div>
               <div class="cbi-value-description">${t(
                 "Show temperature monitor on Overview page",
+              )}</div>
+            </div>
+          </div>
+
+          <!-- Показывается только если установлен luci-app-5gmodem: строку
+               раскрывает revealModemTempRow() после ответа getIntegrations. -->
+          <div class="cbi-value" id="proton-modem-temp-row" style="display:none">
+            <label class="cbi-value-title" for="proton-modem-temp-check">${t(
+              "Modem Temperature",
+            )}</label>
+            <div class="cbi-value-field">
+              <div class="cbi-checkbox">
+                <input id="proton-modem-temp-check" type="checkbox" ${
+                  settings.modemTemp ? "checked" : ""
+                }>
+                <label for="proton-modem-temp-check"></label>
+              </div>
+              <div class="cbi-value-description">${t(
+                "Show the modem temperature in the temperature block",
               )}</div>
             </div>
           </div>
@@ -2812,6 +2832,46 @@ return baseclass.extend({
           alert(msg);
         }
       });
+
+      // Температура модема (нужен luci-app-5gmodem). Пишем в localStorage;
+      // settings-sync сохранит в uci proton2025.modem_temp (ключ есть в
+      // SETTINGS_MAP), а бекенд getSensors добавит датчик модема в блок.
+      const modemTempCheck = document.getElementById("proton-modem-temp-check");
+      modemTempCheck?.addEventListener("change", (e) => {
+        const enabled = e.target.checked;
+        localStorage.setItem("proton-modem-temp", enabled ? "true" : "false");
+        const msg = enabled
+          ? _("Modem temperature enabled. It appears in the router temperature block.")
+          : _("Modem temperature disabled.");
+        if (typeof L !== "undefined" && L.ui && L.ui.addNotification) {
+          const notif = L.ui.addNotification(null, E("p", msg), "info");
+          if (notif) notif.dataset.protonManaged = "true";
+        } else {
+          alert(msg);
+        }
+      });
+      // Строку с этим тумблером показываем ТОЛЬКО когда установлен пакет модема:
+      // спрашиваем бекенд (getIntegrations). Нет пакета/бекенда - строка скрыта.
+      (function revealModemTempRow() {
+        try {
+          if (!(window.L && L.rpc)) return;
+          const probe = L.rpc.declare({
+            object: "luci.proton-temp",
+            method: "getIntegrations",
+            expect: {},
+          });
+          probe()
+            .then((r) => {
+              if (r && r.modem) {
+                const row = document.getElementById("proton-modem-temp-row");
+                if (row) row.style.display = "";
+              }
+            })
+            .catch(() => {});
+        } catch (e) {
+          /* нет rpc - тумблер просто не показываем */
+        }
+      })();
 
       const servicesLogCheck = document.getElementById(
         "proton-services-log-check",

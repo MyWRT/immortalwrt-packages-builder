@@ -190,6 +190,12 @@ window.ProtonTranslations = {
     "Temperature widget enabled. Visit Status → Overview to see it.":
       "Виджет температуры включён. Перейдите в Статус → Обзор, чтобы увидеть его.",
     "Temperature widget disabled.": "Виджет температуры отключён.",
+    "Modem Temperature": "Температура модема",
+    "Show the modem temperature in the temperature block":
+      "Показывать температуру модема в блоке температуры",
+    "Modem temperature enabled. It appears in the router temperature block.":
+      "Температура модема включена. Она появится в блоке температуры роутера.",
+    "Modem temperature disabled.": "Температура модема выключена.",
     "Widget Log": "Лог виджета",
     "Show activity log under the widget":
       "Показывать лог активности под виджетом",
