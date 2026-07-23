@@ -3830,7 +3830,7 @@ table.assoclist td[data-title="Скорость приёма / отправки"
     flex-wrap: wrap;
     gap: 4px;
     list-style: none;
-    margin: 0 0 24px;
+    margin: 0 0 12px;
     padding: 0;
     border-bottom: 1px solid var(--proton-border);
     position: relative;
@@ -3905,7 +3905,7 @@ table.assoclist td[data-title="Скорость приёма / отправки"
     flex-wrap: wrap;
     gap: 4px;
     list-style: none;
-    margin: 0 0 24px;
+    margin: 0 0 12px;
     padding: 0;
     border-bottom: 1px solid var(--proton-border);
     position: relative;
