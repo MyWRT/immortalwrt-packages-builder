@@ -9,11 +9,14 @@
 @import "./_tokens.css";
 @import "tw-animate-css";
 
-@custom-variant dark (&:where([data-darkmode=true], [data-darkmode=true] *));
+/* Dev-only tooling holds prose and plain CSS whose bare words (static,
+   transition, backdrop-filter, …) Tailwind's automatic source detection would
+   otherwise read as utility candidates and emit into this shipped stylesheet.
+   Nothing here renders markup, so none of it belongs in the scan. */
+@source not "../../vite.config.ts";
+@source not "../../scripts/*.client.js";
 
-@plugin "tailwind-scrollbar" {
-  nocompatible: true;
-}
+@custom-variant dark (&:where([data-darkmode=true], [data-darkmode=true] *));
 
 @import "./_base.css";
 @import "./_layout.css";
