@@ -785,6 +785,59 @@ const buildDetailBody = (item) => {
   const bundled = buildBundledTiles(item);
   if (bundled) children.push(buildDetailHeading(_("Bundled content")), bundled);
 
+  // 字体是唯一一种应用后会长期占着路由器可写空间的资产。图片按槽位覆盖、
+  // 几十上百 KB;而一份覆盖中文的字体动辄好几 MB,在小 flash 设备上这就是
+  // "要不要应用"的决定性信息。所以它不混在 tiles 里,单独说,带确切体积、
+  // 存放位置,以及固件升级后不保留这件事。
+  const fontAssets = (Array.isArray(item.assets) ? item.assets : []).filter(
+    (asset) =>
+      asset && (asset.kind === "font_sans" || asset.kind === "font_mono"),
+  );
+
+  if (fontAssets.length)
+    children.push(
+      E(
+        "p",
+        { class: "aurora-store-dt-foot" },
+        _("Includes %s of font files. They are stored in the router's writable partition, which is shared with installed packages — on devices with little flash, check the free space first. Fonts are not kept across a firmware upgrade and have to be applied again.").format(
+          assetUpload.formatSize(
+            fontAssets.reduce((sum, asset) => sum + (Number(asset.size) || 0), 0),
+          ),
+        ),
+      ),
+      // 版权那句在这里换了个方向:发布面板问的是「你有权发吗」,而站在使用者
+      // 一边,能说的只有「这份字体不是商店的,授权状态没人核实过」。说得比这
+      // 更满就是替上传者担保。
+      E(
+        "p",
+        { class: "aurora-store-dt-foot" },
+        _("The font file comes from whoever shared this theme; the store does not verify its licence."),
+      ),
+    );
+
+  // 名册字体走的是另一条路:字节不随配置走,路由器应用后自己去下载。一份配置
+  // 完全可能一个槽位带着字体文件、另一个槽位用名册字体,所以这两句各判各的 ——
+  // 只是那个已经带了文件的槽位不该再被算进"待下载"。
+  const fontAssetKinds = fontAssets.map((asset) => asset.kind);
+  if (
+    ["font_sans", "font_mono"].some(
+      (key) =>
+        fontAssetKinds.indexOf(key) === -1 &&
+        typeof typography[key] === "string" &&
+        typography[key] &&
+        BUNDLED_FONT_IDS.indexOf(typography[key]) === -1,
+    )
+  )
+    children.push(
+      E(
+        "p",
+        { class: "aurora-store-dt-foot" },
+        _(
+          "This theme uses a downloaded typeface. The router fetches it once after applying; until then the text falls back to the built-in font.",
+        ),
+      ),
+    );
+
   children.push(
     E(
       "p",
@@ -920,16 +973,20 @@ const buildExternalUrlConfirm = (urls, onConfirm) => [
 // non-Aurora themes (every var() carries a fallback). Static string only.
 
 const STORE_CSS =
-  ".aurora-store-head{display:flex;gap:0.8em;align-items:flex-end;flex-wrap:wrap;" +
-  "margin:0.4em 0 0;}" +
-  ".aurora-store-head input{max-width:280px;}" +
+  // One row: tab strip on the left, search box against the right edge, the
+  // spacer eating everything between. It used to be two rows -- a row that
+  // held nothing but the spacer and the search box, then the tabs beneath --
+  // which spent a whole line of vertical space on blank pixels.
+  // align-items:center rather than flex-end: the pill group and the input are
+  // different heights, and their baselines are not what should line up.
+  ".aurora-store-head{display:flex;gap:0.8em;align-items:center;flex-wrap:wrap;" +
+  "margin:0.9em 0 0;}" +
+  ".aurora-store-head input{flex:0 1 280px;min-width:0;}" +
   ".aurora-store-head .sp{flex:1;}" +
-  ".aurora-store-applied{display:flex;align-items:center;gap:0.6em;flex-wrap:wrap;" +
-  "margin-top:0.9em;padding:0.35em 0.4em 0.35em 0.9em;border-radius:0.6em;" +
-  "background:var(--brand-subtle,rgba(0,134,191,0.12));font-size:0.9em;}" +
-  ".aurora-store-applied .sp{flex:1;}" +
   ".aurora-store-tick{color:var(--brand,#0086bf);font-size:0.85em;}" +
-  ".aurora-store-filters{display:flex;gap:2px;flex-wrap:wrap;margin-top:0.9em;" +
+  // No margin-top here: the row above owns the spacing now, and a margin on
+  // one flex item would push it off-center from the search box.
+  ".aurora-store-filters{display:flex;gap:2px;flex-wrap:wrap;" +
   "padding:3px;width:max-content;max-width:100%;border-radius:10px;" +
   "background:var(--surface-sunken,rgba(0,0,0,0.04));" +
   "border:1px solid var(--hairline,rgba(0,0,0,0.1));}" +
@@ -1014,6 +1071,9 @@ const STORE_CSS =
   ".aurora-store-pal-row .l{font-size:0.72em;color:var(--text-subtle,#888);" +
   "width:2.6em;flex:none;}" +
   ".aurora-store-dt-foot{color:var(--text-muted,#777);font-size:0.8em;margin-top:1.4em;}" +
+  ".aurora-store-license-note{margin-top:0.8em;padding:0.7em 0.9em;border-radius:6px;" +
+  "background:var(--warning-surface,rgba(255,180,0,0.08));" +
+  "color:var(--text-muted,#777);font-size:0.8em;line-height:1.6;}" +
   ".aurora-store-drawer-foot{flex:none;padding:0.9em 1.3em;display:flex;gap:0.6em;" +
   "border-top:1px solid var(--hairline,rgba(0,0,0,0.1));}" +
   ".aurora-store-drawer-foot .apply{flex:1;}" +
@@ -1123,10 +1183,14 @@ const STORE_CSS =
   // when the drawer closes.
   ".aurora-store-drawer-body{overscroll-behavior:contain;}" +
   "@media (max-width:600px){" +
-  // Both spacers exist to push a button to the right edge of a wide row.
-  // Once the row wraps they only add a blank line.
-  ".aurora-store-head .sp,.aurora-store-applied .sp{display:none;}" +
-  ".aurora-store-head input{flex:1 1 100%;max-width:none;}" +
+  // The spacer exists to push the search box to the right edge of a wide
+  // row. Once the row wraps it only adds a blank line.
+  ".aurora-store-head .sp{display:none;}" +
+  // Tabs and a 280px input do not share a phone-width line. Dropping the
+  // spacer and letting the input claim a full basis wraps it onto its own
+  // row under the tabs -- the same two-row shape as before, minus the row
+  // that held nothing.
+  ".aurora-store-head input{flex:1 1 100%;}" +
   // Five tabs do not fit on a phone. Scrolling them sideways is what
   // LuCI's own .cbi-tabmenu does; wrapping turns a one-line segmented
   // control into a two-row block that reads like two separate groups.
@@ -1135,10 +1199,6 @@ const STORE_CSS =
   ".aurora-store-filters{flex-wrap:nowrap;overflow-x:auto;" +
   "scrollbar-width:none;-ms-overflow-style:none;}" +
   ".aurora-store-filters::-webkit-scrollbar{display:none;}" +
-  // Basis 100%: the sentence takes the whole first line and the Restore
-  // button drops below it, rather than the two sharing a line that fits
-  // neither -- the button alone is wider than a 320px screen's text column.
-  ".aurora-store-applied .msg{flex:1 1 100%;}" +
   ".aurora-store-idcard{align-items:flex-start;padding:0.7em 0.8em;}" +
   ".aurora-store-share{padding:0.9em 1em 1em;}" +
   ".aurora-store-grid{gap:12px;}" +
@@ -1177,32 +1237,51 @@ return view.extend({
         ),
         null,
       ),
+      // 纯本地的一次 ubus(约 0.09s,见 docs/specs/2026-08-05-store-first-paint.md)。
+      // 它回答的是整页最要紧的那件事:钩子该落在哪张卡上。
+      L.resolveDefault(hubApi.callHubLocalState(), null),
       uci.load("aurora"),
-    ]).then(([presetsRes]) => ({
+    ]).then(([presetsRes, localState]) => ({
       presets: (presetsRes && presetsRes.presets) || null,
-      hubApplied: uci.get("aurora", "theme", "hub_applied") || "",
+      // 单一真相。active_preset 与 hub_applied 都还在 uci 里给各自的老消费者
+      // 用(studio 的表单、get_init_data),但商店的匹配只认这一个。
+      activeSource: (localState && localState.active_source) || "",
+      // 当前外观还等于上次从商店里选的那张卡吗。为假 = 这套外观是用户自己的。
+      modified: Boolean(localState && localState.modified),
+      // 被商店主题盖掉之前的样子,投影成 presets.json 行的形状。
+      backupPreview: (localState && localState.backup) || null,
       // Set by rpcd whenever the key leaves the router (export or import).
       // Lives in uci rather than localStorage so it follows a keep-settings
       // upgrade, survives a browser change, and resets to zero on the clean
       // reflash that is exactly when the reminder should come back.
       keySaved: uci.get("aurora", "theme", "hub_key_saved") === "1",
-      activePreset: uci.get("aurora", "theme", "active_preset") || "default",
       // This router's own navigation shape. It used to stand in for the
       // built-in presets' too, back when a preset changed only colours; now
       // every preview draws the configuration's own nav_type and this is read
       // by the publish panel alone -- the preview and manifest of what YOUR
       // configuration would look like in the store.
       navType: uci.get("aurora", "theme", "nav_type") || "mega-menu",
+      // 会随这份配置一起上传的自定义字体([{slot,family,size}])。rpcd 用的是
+      // build_share_payload 打包时的同一个判断,所以发布面板上写着要发什么,
+      // 线路上发的就是什么。名册预设不在其中 —— 接收端自己去下载。
+      sharedFonts: (localState && localState.shared_fonts) || [],
     }));
   },
 
   render(loadData) {
-    let appliedName = loadData.hubApplied || "";
-    const activePreset =
-      loadData.activePreset === "classic" || !loadData.activePreset
-        ? "default"
-        : loadData.activePreset;
+    // 钩子落在「等于当前外观」的那张卡上。一张都不等于 —— 也就是 modified ——
+    // 就说明当前外观是用户自己的,「我的配置」那张卡代表它。整页的选中态只由
+    // 这两个值决定,没有第三处真相。
+    const activeSource = loadData.activeSource;
+    const modified = loadData.modified;
+    const backupPreview = loadData.backupPreview;
     const currentNav = loadData.navType;
+    const sharedFonts = loadData.sharedFonts;
+
+    const isCurrentBuiltin = (preset) =>
+      !modified && activeSource === "builtin:" + preset.id;
+    const isCurrentOnline = (item) =>
+      !modified && activeSource === "hub:" + item.id;
 
     // Built-in preset card models: local data, offline-safe. When presets.json
     // is missing (broken install) the group renders nothing.
@@ -1235,7 +1314,6 @@ return view.extend({
     styleEl.textContent = STORE_CSS;
 
     const rootEl = E("div", { class: "cbi-map aurora-store" });
-    const bannerEl = E("div", { id: "aurora-hub-banner" });
     const contentEl = E("div", {});
     const drawerMask = E("div", { class: "aurora-store-mask" });
     const drawerEl = E("div", { class: "aurora-store-drawer" });
@@ -1244,20 +1322,22 @@ return view.extend({
     drawerMask.addEventListener("click", closeDrawer);
 
     // ------------------------------------------------------------------
-    // Rollback banner
+    // Rolling back to your own configuration
 
+    // 「我的配置」那张卡的 apply。措辞和应用任何一张卡一致 —— 对用户来说这
+    // 就是同一件事,只是这一张碰巧是他自己的。
     const confirmRestore = () => {
-      ui.showModal(_("Restore Previous Configuration"), [
+      ui.showModal(_("Apply My Configuration"), [
         E(
           "p",
           {},
           _(
-            "This replaces your current settings with the ones from just before the last applied configuration.",
+            "This puts back the look you had before applying a theme from the store.",
           ),
         ),
         buildConfirmActions(() => {
-          ui.showModal(_("Restoring"), [
-            E("p", { class: "spinning" }, _("Restoring…")),
+          ui.showModal(_("Applying"), [
+            E("p", { class: "spinning" }, _("Applying…")),
           ]);
           L.resolveDefault(hubApi.callHubRestore(), null).then((res) => {
             if (res && res.result === 0) {
@@ -1271,41 +1351,14 @@ return view.extend({
               "warning",
             );
           });
-        }, _("Restore")),
+        }, _("Apply")),
       ]);
     };
 
-    const renderBanner = () => {
-      while (bannerEl.firstChild) bannerEl.removeChild(bannerEl.firstChild);
-      if (!appliedName) {
-        bannerEl.className = "";
-        return;
-      }
-      bannerEl.className = "aurora-store-applied";
-      // Tick and sentence are one flex item, not two. As siblings the tick was
-      // a flex item in its own right, so on a narrow screen the sentence wrapped
-      // to the next line and left a lone ✓ sitting above it.
-      bannerEl.appendChild(
-        E("span", { class: "msg" }, [
-          buildCurrentTick(),
-          document.createTextNode(" " + _("In use") + " "),
-          E("strong", {}, [document.createTextNode(appliedName)]),
-        ]),
-      );
-      bannerEl.appendChild(E("span", { class: "sp" }));
-      bannerEl.appendChild(
-        E(
-          "button",
-          { type: "button", class: "cbi-button", click: confirmRestore },
-          _("Restore previous configuration"),
-        ),
-      );
-    };
-
     // ------------------------------------------------------------------
-    // Online apply flow (backup -> job -> poll -> banner)
+    // Online apply flow (backup -> job -> poll -> reload)
 
-    const pollApplyStatus = (jobId, remaining, name) => {
+    const pollApplyStatus = (jobId, remaining) => {
       if (remaining <= 0) {
         ui.hideModal();
         ui.addNotification(
@@ -1320,16 +1373,14 @@ return view.extend({
         L.resolveDefault(hubApi.callGetHubStatus(jobId), {}).then((status) => {
           if (status && status.state === "done") {
             ui.hideModal();
-            appliedName = name;
-            renderBanner();
             ui.addNotification(null, E("p", {}, _("Applied.")), "info");
-            // 应用完必须重新加载,否则画面和应用前一模一样,只有横幅变了 ——
-            // 颜色、字体、图片全是 header.ut 在服务端渲染进文档的(字体 CSS
-            // 用 readfile 内联,图片靠 icon_cache_version 打戳),都只在文档
-            // 加载时求值一次。内置预设和回滚两条路径一直都这么收尾。
+            // 应用完必须重新加载,否则画面和应用前一模一样 —— 颜色、字体、
+            // 图片全是 header.ut 在服务端渲染进文档的(字体 CSS 用 readfile
+            // 内联,图片靠 icon_cache_version 打戳),都只在文档加载时求值一
+            // 次。内置预设和回滚两条路径一直都这么收尾。
             //
-            // 横幅照旧先更新:重新加载不是同步的,在新文档到达之前用户看到
-            // 的还是这一份 DOM。
+            // 重新加载也是钩子挪位的唯一途径:active_source 与指纹是 rpcd 在
+            // 收尾时写的,只有再读一次 load() 才知道该落在哪张卡上。
             window.location.reload();
           } else if (status && status.state === "error") {
             ui.hideModal();
@@ -1339,13 +1390,13 @@ return view.extend({
               "warning",
             );
           } else {
-            pollApplyStatus(jobId, remaining - 1, name);
+            pollApplyStatus(jobId, remaining - 1);
           }
         });
       }, 1500);
     };
 
-    const startApply = (id, name) => {
+    const startApply = (id) => {
       ui.showModal(_("Applying"), [
         E("p", { class: "spinning" }, _("Applying this configuration…")),
       ]);
@@ -1359,14 +1410,14 @@ return view.extend({
           );
           return;
         }
-        pollApplyStatus(res.job_id, 20, name);
+        pollApplyStatus(res.job_id, 20);
       });
     };
 
     const confirmOnlineApply = (item) => {
       closeDrawer();
       const urls = externalToolbarUrls(item.payload || {});
-      const onConfirm = () => startApply(item.id, item.name);
+      const onConfirm = () => startApply(item.id);
       ui.showModal(
         _("Apply Configuration"),
         urls.length
@@ -1464,7 +1515,7 @@ return view.extend({
       ]);
 
     const openBuiltinDrawer = (preset) => {
-      const current = preset.id === activePreset;
+      const current = isCurrentBuiltin(preset);
       const typography = preset.preview.typography || {};
       const title = E("h3", { style: "margin:0 0 0.3em;" }, [
         document.createTextNode(preset.label),
@@ -1514,6 +1565,32 @@ return view.extend({
       ]);
     };
 
+    const openMineDrawer = (item) => {
+      const preview = item.preview || {};
+      renderDrawer([
+        buildPanes(paletteOf(item), previewOpts(item)),
+        E("div", { class: "aurora-store-drawer-body" }, [
+          E("h3", { style: "margin:0 0 0.3em;" }, [
+            document.createTextNode(_("My configuration")),
+          ]),
+          E(
+            "p",
+            { class: "aurora-store-dt-desc" },
+            modified
+              ? _("The look this router is wearing right now.")
+              : _(
+                  "How this router looked before you applied a theme from the store.",
+                ),
+          ),
+          buildDetailHeading(_("Colors")),
+          buildPaletteChips(item),
+          buildDetailHeading(_("Layout & Typography")),
+          buildLayoutRows(preview.layout || {}, preview.typography || {}),
+        ]),
+        drawerFoot(_("Apply"), () => confirmRestore(), modified),
+      ]);
+    };
+
     const renderDrawerLoadError = () => {
       if (!rootEl.classList.contains("aurora-store-open")) return;
       renderDrawer([
@@ -1543,7 +1620,7 @@ return view.extend({
           renderDrawer([
             buildPanes(paletteOf(item), previewOpts(item)),
             E("div", { class: "aurora-store-drawer-body" }, [buildDetailBody(item)]),
-            drawerFoot(_("Apply"), () => confirmOnlineApply(item)),
+            drawerFoot(_("Apply"), () => confirmOnlineApply(item), isCurrentOnline(item)),
           ]);
         })
         .catch(renderDrawerLoadError);
@@ -1619,7 +1696,7 @@ return view.extend({
       opts: previewOpts(preset),
       badge: null,
       glyphs: buildCardGlyphs(preset),
-      current: preset.id === activePreset,
+      current: isCurrentBuiltin(preset),
       open: () => openBuiltinDrawer(preset),
       apply: () => confirmBuiltinApply(preset),
     });
@@ -1635,10 +1712,68 @@ return view.extend({
       badge:
         item.assets_status === "approved" ? buildBadge(_("Includes assets")) : null,
       glyphs: buildCardGlyphs(item),
-      current: false,
+      current: isCurrentOnline(item),
       open: () => openOnlineDrawer(item.id),
       apply: () => quickApplyOnline(item.id),
     });
+
+    // ------------------------------------------------------------------
+    // My configuration
+    //
+    // 一个槽位,两个时刻。改过 -> 这张卡就是屏幕上正在发生的样子;没改过 ->
+    // 它是被商店主题盖掉之前你自己那份。「备份」和「我的配置」本来就是同一个
+    // 东西 —— 你被别人的主题盖掉之前的样子 —— 所以它们共用这一张卡,回滚也
+    // 就不再是一套要理解的机制,只是把它点回来。
+
+    // 当前 uci 投影成一行 preview,与 presets.json 的行、与 hub 列表行同一个
+    // 形状,于是 paletteOf/navOf/tileEntriesFor 读它和读那两种用的是同一套访问
+    // 器。三种卡,一套访问器,同一个外观不可能被画成两个样子。
+    const currentPreview = () => ({
+      colors: SWATCH_KEYS.reduce((acc, key) => {
+        ["light", "dark"].forEach((mode) => {
+          acc[mode + "_" + key] =
+            uci.get("aurora", "theme", mode + "_" + key) || "";
+        });
+        return acc;
+      }, {}),
+      layout: {
+        nav_type: currentNav,
+        struct_radius_base:
+          uci.get("aurora", "theme", "struct_radius_base") || "",
+      },
+      typography: {
+        struct_font_sans: uci.get("aurora", "theme", "struct_font_sans") || "",
+        struct_font_mono: uci.get("aurora", "theme", "struct_font_mono") || "",
+      },
+    });
+
+    const mineItem = () => {
+      if (!modified && !backupPreview) return null;
+      return { preview: modified ? currentPreview() : backupPreview };
+    };
+
+    const buildMineModel = () => {
+      const item = mineItem();
+      if (!item) return null;
+      return {
+        name: _("My configuration"),
+        author: _("On this router only"),
+        right: modified ? _("In use") : _("Not in use"),
+        palette: paletteOf(item),
+        opts: previewOpts(item),
+        badge: null,
+        glyphs: buildCardGlyphs(item),
+        current: modified,
+        open: () => openMineDrawer(item),
+        apply: () => confirmRestore(),
+      };
+    };
+
+    const buildMineGrid = () => {
+      const model = buildMineModel();
+      if (!model) return null;
+      return E("div", { class: "aurora-store-grid" }, [buildCard(model)]);
+    };
 
     // ------------------------------------------------------------------
     // My shares
@@ -2261,6 +2396,19 @@ return view.extend({
           detail: mono ? family + " · " + mono : family,
         });
 
+      // 上传的字体文件本身也要单独列一行。上面那行只是字体的名字 —— 而这
+      // 一行说的是"这份 woff2 会被传上去",带着体积,因为它决定了别人要不要
+      // 在自己的路由器上腾出这么多空间。
+      sharedFonts.forEach((font) =>
+        rows.push({
+          label:
+            font.slot === "mono" ? _("Mono Font File") : _("Sans Font File"),
+          detail: _("Uploaded with the theme, %s").format(
+            assetUpload.formatSize(font.size),
+          ),
+        }),
+      );
+
       // The same five image slots build_share_payload walks, read by name so
       // the keys stay next to the labels they produce. Two slots share the
       // "Site Icon" label and two share "App Icon", so the list is
@@ -2759,6 +2907,21 @@ return view.extend({
           { style: "color:var(--text-muted);font-size:0.8em;margin-top:0.8em;" },
           _("Anyone who applies this gets all of it. You can update or remove it later."),
         ),
+      );
+
+      // 只在真的要发字体文件时才出现。字体和图标不是一回事:一个自己画的
+      // logo 是自己的,而一份字体绝大多数情况下是别人的作品,多数商业授权
+      // 明确不允许再分发。这句话必须在按下发布之前就在眼前,不能藏进条款。
+      if (sharedFonts.length)
+        children.push(
+          E(
+            "p",
+            { class: "aurora-store-license-note" },
+            _("This share includes your uploaded font file. Please make sure you have the right to redistribute it — most commercial font licences do not allow it. Configurations reported for infringement are taken down."),
+          ),
+        );
+
+      children.push(
         E("div", { class: "right", style: "margin-top:1em;" }, [submitBtn]),
       );
 
@@ -2775,7 +2938,13 @@ return view.extend({
       { key: "builtin", label: _("Built-in"), count: () => builtinItems.length },
       { key: "hot", label: _("Hot") },
       { key: "new", label: _("New") },
-      { key: "mine", label: _("My Shares"), count: () => myShares.length },
+      // 「我的分享」变成「我的」:这一页现在还收着「我的配置」那张卡,而它
+      // 恰恰是唯一一份从没发布出去的东西。
+      {
+        key: "mine",
+        label: _("Mine"),
+        count: () => myShares.length + (buildMineModel() ? 1 : 0),
+      },
     ];
 
     const renderTabLabel = (tab) => {
@@ -2809,20 +2978,20 @@ return view.extend({
       renderContent();
     });
 
-    const headEl = E("div", {}, [
-      E("div", { class: "aurora-store-head" }, [
-        // No heading here: the tab strip directly above already reads "Theme
-        // Marketplace", and this printed the same words again a hand's width
-        // below it. The spacer stays -- it is what pushes the search box
-        // right now that nothing precedes it.
-        //
-        // The publish button that used to sit next to the search box is gone
-        // with the other two: this page no longer starts a publish at all.
-        E("span", { class: "sp" }),
-        searchInput,
-      ]),
-      bannerEl,
+    // Tabs and search share one row. They were stacked, and because nothing
+    // sat to the left of the search box its row was a band of empty pixels
+    // running the full width of the page -- the spacer was the only thing in
+    // it. Now the spacer earns its keep: it is what holds the search box
+    // against the right edge with the tab strip on the left.
+    //
+    // No heading here: the tab strip directly above already reads "Theme
+    // Marketplace", and this printed the same words again a hand's width
+    // below it. The publish button that used to sit next to the search box is
+    // gone with the other two: this page no longer starts a publish at all.
+    const headEl = E("div", { class: "aurora-store-head" }, [
       tabsEl,
+      E("span", { class: "sp" }),
+      searchInput,
     ]);
 
     // ------------------------------------------------------------------
@@ -2932,6 +3101,16 @@ return view.extend({
       while (contentEl.firstChild) contentEl.removeChild(contentEl.firstChild);
       const push = (node) => node && contentEl.appendChild(node);
 
+      // 排在最前面:正在用的那张卡应该第一眼看见。既没改过、又没有可回去的
+      // 配置时整段不出现 —— 那时用户还没有属于自己的东西。
+      if (state.tab === "all" || state.tab === "mine") {
+        const mineGrid = buildMineGrid();
+        if (mineGrid) {
+          push(buildSectionTitle(_("Mine"), _("On this router only")));
+          push(mineGrid);
+        }
+      }
+
       if (state.tab === "all" || state.tab === "builtin") {
         const builtinGrid = buildBuiltinGrid();
         if (builtinGrid) {
@@ -3011,7 +3190,6 @@ return view.extend({
     if (cached && Array.isArray(cached.items) && cached.items.length)
       state.online.hot = cached.items;
 
-    renderBanner();
     // 缓存或 null。null 走空态,不是错误态 —— 一台刚装好的路由器本来就没有
     // 已发布的作品,和"拿不到数据"是两回事。
     applyMe(hubApi.meCache.getStale());
