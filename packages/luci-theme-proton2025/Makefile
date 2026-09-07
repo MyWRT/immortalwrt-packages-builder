@@ -11,7 +11,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-proton2025
-PROTON_VERSION?=1.3.0
+# Дефолт для локальной сборки без тега; в CI перекрывается тегом релиза.
+PROTON_VERSION?=1.4.0
 PROTON_RELEASE?=1
 
 PKG_VERSION:=$(PROTON_VERSION)
@@ -22,6 +23,7 @@ LUCI_DEPENDS:=+luci-base
 LUCI_PKGARCH:=all
 
 LUCI_MINIFY_CSS:=0
+LUCI_MINIFY_UT:=0
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE NOTICE
 
