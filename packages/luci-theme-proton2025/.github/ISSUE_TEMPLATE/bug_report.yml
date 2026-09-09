@@ -1,0 +1,79 @@
+name: "🐛 Bug Report / Отчет об ошибке"
+description: "Report a styling or UI issue / Сообщить об ошибке верстки или UI"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **IMPORTANT / ВАЖНО:** 
+        Before submitting, **clear your browser cache** (Ctrl+F5) and test in **Incognito mode**. 
+        Перед отправкой **очистите кэш браузера** (Ctrl+F5) и проверьте в **режиме инкогнито**.
+
+  - type: dropdown
+    id: bootstrap_check
+    attributes:
+      label: "🔍 Isolate Issue / Изоляция проблемы"
+      description: "Does this issue occur on the default `luci-theme-bootstrap`? / Возникает ли эта проблема на стандартной теме `luci-theme-bootstrap`?"
+      options:
+        - "No, only on this theme / Нет, только в этой теме"
+        - "Yes, it happens on Bootstrap too / Да, на Bootstrap тоже есть"
+        - "I haven't checked / Не проверял"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: openwrt_version
+    attributes:
+      label: "🔧 OpenWrt Version / Версия OpenWrt"
+      options:
+        - "23.05.x"
+        - "24.10.x"
+        - "25.x+"
+        - "Snapshot / Master"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: "🌐 Browser & OS / Браузер и ОС"
+      description: "Select your environment / Выберите ваше окружение"
+      options:
+        - "Desktop: Chrome / Edge"
+        - "Desktop: Firefox"
+        - "Desktop: Safari (macOS)"
+        - "Mobile: Chrome (Android)"
+        - "Mobile: Safari (iOS)"
+        - "Other / Другое"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: theme_mode
+    attributes:
+      label: "🌓 Theme Mode / Режим темы"
+      options:
+        - "Dark / Темный"
+        - "Light / Светлый"
+        - "Auto / Авто"
+        - "All modes / Все режимы"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "📝 Description & Steps / Описание и шаги воспроизведения"
+      description: "What is the bug and how to reproduce it? / В чем ошибка и как её воспроизвести?"
+      placeholder: "1. Go to...\n2. Click on..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "📸 Screenshots / Скриншоты"
+      description: "Attach screenshots (drag & drop) / Прикрепите скриншоты (перетащите файлы сюда)"
+    validations:
+      required: false
