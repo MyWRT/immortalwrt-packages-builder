@@ -160,5 +160,11 @@
                 "dir": "luci-app-bandix"
             }
         ]
+    },
+    {
+        "URL": "https://github.com/yingziwu/openwrt-fakehttp.git"
+    },
+    {
+        "URL": "https://github.com/yingziwu/luci-app-fakehttp.git"
     }
 ]
