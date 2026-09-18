@@ -69,7 +69,7 @@
                 "dir": "luci-app-mosdns"
             },
             {
-                "dir": "v2dat"
+                "dir": "geo2txt"
             },
             {
                 "dir": "mosdns"
