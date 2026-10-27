@@ -694,8 +694,8 @@ return view.extend({
 		// 添加网速单位选择选项
 		o = s.option(form.ListValue, 'speed_unit', _('Speed Units'),
 			_('Select the speed display unit format'));
-		o.value('bytes', _('Bytes Units (B/s, KB/s, MB/s)'));
-		o.value('bits', _('Bits Units (bps, Kbps, Mbps)'));
+		o.value('bytes', _('Bytes Units (B/s, KiB/s, MiB/s)'));
+		o.value('bits', _('Bits Units (bps, kbps, Mbps)'));
 		o.default = 'bytes';
 		o.rmempty = false;
 
@@ -796,8 +796,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_geoip_manager', _('IP location database'));
 		o.renderWidget = function () { return geoip.render(); };
 
-		o = s.option(form.Value, 'geoip_dir', _('Database directory'),
-			_('Use persistent storage or an external drive. Save and apply directory changes before downloading.'));
+		o = s.option(form.Value, 'geoip_dir', _('Database directory'));
 		o.default = '/usr/share/bandix-geoip';
 		o.placeholder = '/usr/share/bandix-geoip';
 		o.datatype = 'directory';

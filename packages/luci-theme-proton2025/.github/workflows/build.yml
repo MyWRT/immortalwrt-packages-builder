@@ -16,6 +16,7 @@ jobs:
   build:
     name: Build ${{ matrix.package_format }} package
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -23,9 +24,11 @@ jobs:
           - package_format: ipk
             artifact_name: luci-theme-proton2025-ipk
             sdk_url: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          # A release SDK instead of snapshots: the snapshot SDK changed under
+          # every build and could never be cached.
           - package_format: apk
             artifact_name: luci-theme-proton2025-apk
-            sdk_url: https://downloads.openwrt.org/snapshots/targets/x86/64/openwrt-sdk-x86-64_gcc-14.4.0_musl.Linux-x86_64.tar.zst
+            sdk_url: https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/openwrt-sdk-25.12.5-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
 
     steps:
       - name: Checkout
@@ -41,21 +44,31 @@ jobs:
 
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
           echo "PACKAGE_RELEASE=1" >> "$GITHUB_ENV"
+          echo "SDK_ARCHIVE=$RUNNER_TEMP/sdk/$(basename "${{ matrix.sdk_url }}")" >> "$GITHUB_ENV"
 
-      - name: Install host tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zstd
+      # A release SDK never changes and pins its feeds to fixed commits, so the
+      # archive and the cloned luci feed are cached together, keyed by its URL.
+      - name: Cache OpenWrt SDK
+        id: sdk-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/sdk
+          key: openwrt-sdk-v2-${{ matrix.sdk_url }}
 
       - name: Download OpenWrt SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         env:
           SDK_URL: ${{ matrix.sdk_url }}
         run: |
-          cd "$RUNNER_TEMP"
-          SDK_ARCHIVE="$RUNNER_TEMP/$(basename "$SDK_URL")"
-          curl -fL "$SDK_URL" -o "$SDK_ARCHIVE"
-          tar -xf "$SDK_ARCHIVE"
-          SDK_DIR="$(find "$RUNNER_TEMP" -maxdepth 1 -type d -name 'openwrt-sdk*' | head -n 1)"
+          mkdir -p "$(dirname "$SDK_ARCHIVE")"
+          curl -fL --retry 3 "$SDK_URL" -o "$SDK_ARCHIVE"
+
+      - name: Extract OpenWrt SDK
+        run: |
+          command -v zstd >/dev/null || sudo apt-get install -y zstd
+          mkdir -p "$RUNNER_TEMP/build"
+          tar -xf "$SDK_ARCHIVE" -C "$RUNNER_TEMP/build"
+          SDK_DIR="$(find "$RUNNER_TEMP/build" -maxdepth 1 -type d -name 'openwrt-sdk*' | head -n 1)"
           if [ -z "$SDK_DIR" ]; then
             echo "OpenWrt SDK directory not found" >&2
             exit 1
@@ -75,8 +88,17 @@ jobs:
             --exclude 'staging_dir' \
             "$GITHUB_WORKSPACE/" package/luci-theme-proton2025/
 
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          # Only the luci feed is needed: luci.mk and the luci-base host tools.
+          # Cloning it from git.openwrt.org takes up to a minute, so a cached
+          # copy is reused.
+          FEEDS_CACHE="$(dirname "$SDK_ARCHIVE")/feeds"
+          if [ -f "$FEEDS_CACHE/luci.index" ]; then
+            cp -a "$FEEDS_CACHE" ./feeds
+          else
+            ./scripts/feeds update luci
+            cp -a ./feeds "$FEEDS_CACHE"
+          fi
+          ./scripts/feeds install luci-base
 
           cat >> .config << 'CONFIG_END'
           CONFIG_PACKAGE_luci-theme-proton2025=m
@@ -87,7 +109,14 @@ jobs:
           fi
 
           make defconfig
-          make package/luci-theme-proton2025/compile V=s \
+
+          # The theme compiles nothing (PKGARCH:=all). Without NO_DEPS the SDK
+          # built the whole dependency tree from source (luci-base, uhttpd,
+          # ucode, ubus...), 15-27 minutes per job. It only needs the luci-base
+          # host tools (jsmin, po2lmo), which take a few seconds. The packages
+          # come out byte-identical to the full build.
+          make package/luci-base/host/compile -j"$(nproc)" V=s
+          make package/luci-theme-proton2025/compile NO_DEPS=1 -j"$(nproc)" V=s \
             PROTON_VERSION="$PACKAGE_VERSION" \
             PROTON_RELEASE="$PACKAGE_RELEASE"
 
@@ -110,6 +139,25 @@ jobs:
           echo "Built package version: ${PACKAGE_VERSION}-r${PACKAGE_RELEASE}"
           ls -lah "$GITHUB_WORKSPACE/dist/$PACKAGE_FORMAT"
 
+      # A failed minifier leaves empty *.o files next to unminified sources
+      # instead of failing the build; never ship such a package.
+      - name: Check package contents
+        run: |
+          cd "$GITHUB_WORKSPACE/dist/${{ matrix.package_format }}"
+          mkdir -p "$RUNNER_TEMP/check/root"
+          if [ "${{ matrix.package_format }}" = "ipk" ]; then
+            tar -xzOf ./*.ipk ./data.tar.gz | tar -tz > "$RUNNER_TEMP/check/files.txt"
+          else
+            "$SDK_DIR/staging_dir/host/bin/apk" --allow-untrusted extract \
+              --destination "$RUNNER_TEMP/check/root" ./*.apk
+            (cd "$RUNNER_TEMP/check/root" && find . -type f) > "$RUNNER_TEMP/check/files.txt"
+          fi
+          if grep -E '\.(js|css)\.o$' "$RUNNER_TEMP/check/files.txt"; then
+            echo "Minification failed: leftover .o files in the package" >&2
+            exit 1
+          fi
+          grep -q 'luci-static/proton2025/js/package-upload.js' "$RUNNER_TEMP/check/files.txt"
+
       - name: Upload ${{ matrix.package_format }} artifact
         uses: actions/upload-artifact@v7
         with:
@@ -123,6 +171,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            CHANGELOG.md
+            CHANGELOG_ru.md
+          sparse-checkout-cone-mode: false
+
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
@@ -133,30 +189,105 @@ jobs:
       - name: Show release files
         run: ls -lah dist
 
+      # The release text was the install instructions only, so the changes of
+      # every release had to be pasted from CHANGELOG.md by hand. Take the
+      # "## [<version>]" section of CHANGELOG_ru.md (first) and CHANGELOG.md
+      # instead; either file may lack it.
+      - name: Build release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+
+          # Prints the section of $1 for $VERSION, headings one level down.
+          section() {
+            [ -f "$1" ] || return 0
+            awk -v ver="$VERSION" '
+              BEGIN { hdr = "## [" ver "]" }
+              index($0, hdr) == 1 { on = 1; next }
+              on && /^## \[/ { exit }
+              on && !/^---[[:space:]]*$/ { print }
+            ' "$1" | sed -e 's/^## /### /' -e '/./,$!d'
+          }
+
+          section CHANGELOG_ru.md > "$RUNNER_TEMP/changes-ru.md"
+          section CHANGELOG.md > "$RUNNER_TEMP/changes-en.md"
+
+          {
+            echo "## Proton2025 Theme ${GITHUB_REF_NAME}"
+            found=0
+            for lang in ru en; do
+              if grep -q '[^[:space:]]' "$RUNNER_TEMP/changes-$lang.md"; then
+                [ "$found" = 1 ] && printf '\n---\n'
+                echo
+                cat "$RUNNER_TEMP/changes-$lang.md"
+                found=1
+              fi
+            done
+            if [ "$found" = 0 ]; then
+              echo
+              echo "См. / See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md)."
+            fi
+            cat << 'INSTALL_END'
+
+          ---
+
+          ### Установка
+
+          Одна команда по SSH под root. Скрипт определяет менеджер пакетов
+          (`apk` или `opkg`), берёт подходящий файл из этого релиза,
+          устанавливает его и включает тему в LuCI.
+
+          ```bash
+          wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/install.sh | sh
+          ```
+
+          Удаление:
+
+          ```bash
+          wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/uninstall.sh | sh
+          ```
+
+          Для ручной установки возьмите точное имя файла из списка ниже:
+          `.apk`, если `command -v apk` выводит путь, иначе `.ipk`.
+
+          ### Installation
+
+          One command over root SSH. The script detects the package manager
+          (`apk` or `opkg`), picks the matching asset from this release,
+          installs it and switches LuCI over to the theme.
+
+          ```bash
+          wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/install.sh | sh
+          ```
+
+          Removal:
+
+          ```bash
+          wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/uninstall.sh | sh
+          ```
+
+          To install by hand, take the exact file name from the assets below:
+          `.apk` if `command -v apk` prints a path, `.ipk` otherwise.
+          INSTALL_END
+          } > "$NOTES"
+
+          # In a fork, "#89" would link to the fork's own issues and PRs.
+          UPSTREAM="ChesterGoodiny/luci-theme-proton2025"
+          if [ "$GITHUB_REPOSITORY" != "$UPSTREAM" ]; then
+            sed -i -E "s~(^|[[:space:](,])#([0-9]+)~\1${UPSTREAM}#\2~g" "$NOTES"
+          fi
+
+          for lang in en ru; do
+            if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/changes-$lang.md"; then
+              echo "::warning::No [${VERSION}] section in the ${lang} changelog"
+            fi
+          done
+          cat "$NOTES"
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
           files: dist/*
-          body: |
-            ## Proton2025 Theme ${{ github.ref_name }}
-
-            ### Installation
-
-            One command over root SSH. The script detects the package manager
-            (`apk` or `opkg`), picks the matching asset from this release,
-            installs it and switches LuCI over to the theme.
-
-            ```bash
-            wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/install.sh | sh
-            ```
-
-            ### Removal
-
-            ```bash
-            wget -qO- https://raw.githubusercontent.com/ChesterGoodiny/luci-theme-proton2025/main/uninstall.sh | sh
-            ```
-
-            To install by hand, take the exact file name from the assets below:
-            `.apk` if `command -v apk` prints a path, `.ipk` otherwise.
+          body_path: ${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -653,11 +653,11 @@ msgstr "Единицы скорости"
 msgid "Select the speed display unit format"
 msgstr "Выберите формат единиц отображения скорости"
 
-msgid "Bytes Units (B/s, KB/s, MB/s)"
-msgstr "Единицы в байтах (B/s, KB/s, MB/s)"
+msgid "Bytes Units (B/s, KiB/s, MiB/s)"
+msgstr "Единицы в байтах (B/s, KiB/s, MiB/s)"
 
-msgid "Bits Units (bps, Kbps, Mbps)"
-msgstr "Единицы в битах (bps, Kbps, Mbps)"
+msgid "Bits Units (bps, kbps, Mbps)"
+msgstr "Единицы в битах (bps, kbps, Mbps)"
 
 msgid "Interface Theme"
 msgstr "Тема интерфейса"
@@ -692,8 +692,8 @@ msgstr "Установить таймаут определения офлайн 
 msgid "Realtime Traffic Period"
 msgstr "Период трафика в реальном времени"
 
-msgid "10 minutes interval uses about 60 KB per device"
-msgstr "Интервал 10 минут использует около 60 КБ на устройство"
+msgid "10 minutes interval uses about 60 KiB per device"
+msgstr "Интервал 10 минут использует около 60 KiB на устройство"
 
 msgid "Data Flush Interval"
 msgstr "Интервал сброса данных"
@@ -1510,3 +1510,71 @@ msgstr "Адрес прослушивания"
 
 msgid "IP address for Bandix to listen on. Use 127.0.0.1 for local access or 0.0.0.0 / :: for all interfaces."
 msgstr "IP-адрес прослушивания Bandix. Используйте 127.0.0.1 для локального доступа или 0.0.0.0 / :: для всех интерфейсов."
+
+msgid "ASN / network organization"
+msgstr "ASN / сетевая организация"
+
+msgid "Country/region + province/city"
+msgstr "Страна/регион + область/город"
+
+msgid "Database build dates"
+msgstr "Даты сборки баз данных"
+
+msgid "Download contents"
+msgstr "Содержимое загрузки"
+
+msgid "Installed data source"
+msgstr "Источник установленных данных"
+
+msgid "Installed databases"
+msgstr "Установленные базы данных"
+
+msgid "Release version"
+msgstr "Версия выпуска"
+
+msgid "Location and ASN databases work together."
+msgstr "Базы геолокации и ASN работают совместно."
+
+msgid "Database details"
+msgstr "Сведения о базах данных"
+
+msgid "Apply directory changes before downloading."
+msgstr "Примените изменения каталога перед загрузкой."
+
+msgid "Batch deletion is unavailable. Update the Bandix service."
+msgstr "Пакетное удаление недоступно. Обновите службу Bandix."
+
+#, c-format
+msgid "Delete selected devices (%d)? Their traffic history, hostname bindings, rate limits and quotas will also be removed. Online devices may reappear."
+msgstr "Удалить выбранные устройства (%d)? История трафика, привязки имён, ограничения скорости и квоты также будут удалены. Активные устройства могут появиться снова."
+
+msgid "Delete selected"
+msgstr "Удалить выбранные"
+
+#, c-format
+msgid "Deleted: %d; not found: %d; failed: %d."
+msgstr "Удалено: %d; не найдено: %d; ошибок: %d."
+
+msgid "Failed to delete devices"
+msgstr "Не удалось удалить устройства"
+
+msgid "Invalid batch deletion response"
+msgstr "Некорректный ответ пакетного удаления"
+
+msgid "Select all"
+msgstr "Выбрать все"
+
+msgid "Select device"
+msgstr "Выбрать устройство"
+
+msgid "Search this page: protocol, IP, port, location, ASN…"
+msgstr "Поиск на странице: протокол, IP, порт, геолокация, ASN…"
+
+msgid "Search connections on this page"
+msgstr "Поиск соединений на этой странице"
+
+msgid "Matches on this page"
+msgstr "Совпадения на странице"
+
+msgid "No matching connections on this page"
+msgstr "На этой странице нет подходящих соединений"

@@ -1,6 +1,6 @@
 {
     "luci-theme-proton2025": {
-        "description": "Proton2025 theme - temperature sensor, setting access, and services monitoring",
+        "description": "Proton2025 theme - temperature sensors, theme settings, search cache and package upload",
         "read": {
             "ubus": {
                 "luci.proton-temp": [
@@ -12,7 +12,8 @@
                     "getSystemInfo"
                 ],
                 "luci.proton-search-cache": [
-                    "loadCache"
+                    "loadCache",
+                    "loadCacheChunk"
                 ],
                 "luci.proton-settings": [
                     "getSettings",
@@ -38,18 +39,7 @@
                 "network",
                 "wireless",
                 "dhcp"
-            ],
-            "file": {
-                "/etc/init.d/*": [
-                    "exec"
-                ],
-                "/bin/pidof": [
-                    "exec"
-                ],
-                "/proc/cpuinfo": [
-                    "read"
-                ]
-            }
+            ]
         },
         "write": {
             "ubus": {
@@ -64,6 +54,8 @@
                 ],
                 "luci.proton-search-cache": [
                     "saveCache",
+                    "saveCacheChunk",
+                    "commitCache",
                     "clearCache"
                 ],
                 "luci.proton-packages": [

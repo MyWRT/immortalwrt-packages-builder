@@ -47,6 +47,7 @@
 					"getConnectionFlows",
 					"setHostname",
 					"deleteDevice",
+					"deleteDevices",
 					"getDnsQueries",
 					"getDnsStats",
 					"getScheduleLimits",
@@ -69,6 +70,8 @@
 					"updateScheduleLimit",
 					"getTrafficQuotas",
 					"setTrafficQuota",
+					"setDirectionalTrafficQuota",
+					"setTrafficQuotaConfig",
 					"deleteTrafficQuota",
 					"getGeoipStatus",
 					"manageGeoip"

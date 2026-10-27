@@ -12,7 +12,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-proton2025
 # Дефолт для локальной сборки без тега; в CI перекрывается тегом релиза.
-PROTON_VERSION?=1.4.4
+PROTON_VERSION?=1.4.5
 PROTON_RELEASE?=1
 
 PKG_VERSION:=$(PROTON_VERSION)
@@ -49,11 +49,18 @@ define Package/$(PKG_NAME)/postinst
 		uci commit uhttpd
 	fi
 	[ -f /etc/uci-defaults/30_luci-theme-proton2025 ] && sh /etc/uci-defaults/30_luci-theme-proton2025 >/dev/null 2>&1 || true
-	/etc/init.d/rpcd restart >/dev/null 2>&1 || true
 	rm -f /tmp/proton-search-prefetch-cache.json /tmp/proton-search-prefetch-cache-meta.json >/dev/null 2>&1 || true
 	rm -rf /tmp/proton-search-cache /tmp/proton-search-cache-meta >/dev/null 2>&1 || true
 	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache >/dev/null 2>&1 || true
-	/etc/init.d/uhttpd reload >/dev/null 2>&1 || /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+	# Перезапуск в фоне с задержкой: при обновлении из настроек темы этот
+	# скрипт выполняется внутри RPC-вызова installUpdate, и синхронный
+	# рестарт rpcd/uhttpd обрывал вызов до ответа: UI показывал ошибку,
+	# хотя пакет уже установлен.
+	( trap "" HUP
+	  sleep 3
+	  /etc/init.d/rpcd restart
+	  /etc/init.d/uhttpd reload || /etc/init.d/uhttpd restart
+	) </dev/null >/dev/null 2>&1 &
 }
 
 exit 0
@@ -97,7 +104,7 @@ define Package/$(PKG_NAME)/postrm
 		rmdir "$$d" >/dev/null 2>&1 || true
 	done
 	/etc/init.d/rpcd restart >/dev/null 2>&1 || true
-	rm -f /tmp/proton-search-prefetch-cache.json /tmp/proton-search-prefetch-cache-meta.json >/dev/null 2>&1 || true
+	rm -f /tmp/proton-search-prefetch-cache.json /tmp/proton-search-prefetch-cache.json.part-* /tmp/proton-search-prefetch-cache-meta.json >/dev/null 2>&1 || true
 	rm -rf /tmp/proton-search-cache /tmp/proton-search-cache-meta >/dev/null 2>&1 || true
 	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache >/dev/null 2>&1 || true
 	/etc/init.d/uhttpd reload >/dev/null 2>&1 || /etc/init.d/uhttpd restart >/dev/null 2>&1 || true

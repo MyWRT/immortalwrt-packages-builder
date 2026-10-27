@@ -228,6 +228,13 @@
 <meta name="color-scheme" content="dark light" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="{{ entityencode(boardinfo.hostname ?? 'LuCI', true) }}" />
+{# Установка на главный экран: манифест и PNG-иконки
+   для Android/Chrome, apple-touch-icon для iOS. Браузер предлагает
+   «Установить» только по HTTPS; по HTTP остаётся ярлык на главном экране. #}
+<link rel="manifest" href="{{ media }}/manifest.json" />
+<link rel="apple-touch-icon" href="{{ media }}/img/apple-touch-icon.png" />
 {# Критический фон: задаём сразу в head, чтобы браузер не рисовал белый фон
    до загрузки cascade.css. Значение совпадает с тем, что выставляет
    inline-скрипт ниже и login-bg.css. #}
@@ -237,11 +244,12 @@ body.login-page { background-color: {{ serverTheme === 'light' ? '#ffffff' : '#0
 </style>
 {# Версия должна совпадать с __pv в header.ut: без ?v= браузер отдаёт
    старый cascade.css на странице логина после обновления темы. #}
-{% let __pv = "1.4.4"; %}
+{% let __pv = "1.4.5"; %}
 <link rel="stylesheet" fetchpriority="high" href="{{ media }}/css/cascade.css?v={{ __pv }}" />
 <link rel="stylesheet" href="{{ media }}/css/login-bg.css?v={{ __pv }}" />
 
 <link rel="icon" href="{{ media }}/img/logo.svg" sizes="any" />
+<link rel="icon" href="{{ media }}/img/icon-192.png" type="image/png" sizes="192x192" />
 <title>{{ _('Authorization Required') }} - {{ boardinfo.hostname ?? '?' }} - LuCI</title>
 </head>
 <body class="login-page lang_{{ dispatcher.lang }}" data-lang="{{ dispatcher.lang }}">

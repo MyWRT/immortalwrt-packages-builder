@@ -653,11 +653,11 @@ msgstr "Unités de vitesse"
 msgid "Select the speed display unit format"
 msgstr "Sélectionner le format d'unité d'affichage de la vitesse"
 
-msgid "Bytes Units (B/s, KB/s, MB/s)"
-msgstr "Unités en octets (B/s, Ko/s, Mo/s)"
+msgid "Bytes Units (B/s, KiB/s, MiB/s)"
+msgstr "Unités en octets (B/s, KiB/s, MiB/s)"
 
-msgid "Bits Units (bps, Kbps, Mbps)"
-msgstr "Unités en bits (bps, Kbps, Mbps)"
+msgid "Bits Units (bps, kbps, Mbps)"
+msgstr "Unités en bits (bps, kbps, Mbps)"
 
 msgid "Interface Theme"
 msgstr "Thème de l'interface"
@@ -692,8 +692,8 @@ msgstr "Définir le délai de détection de déconnexion (secondes). Les apparei
 msgid "Realtime Traffic Period"
 msgstr "Période de trafic en temps réel"
 
-msgid "10 minutes interval uses about 60 KB per device"
-msgstr "Intervalle de 10 minutes utilise environ 60 Ko par appareil"
+msgid "10 minutes interval uses about 60 KiB per device"
+msgstr "Intervalle de 10 minutes utilise environ 60 KiB par appareil"
 
 msgid "Data Flush Interval"
 msgstr "Intervalle de vidage des données"
@@ -1510,3 +1510,71 @@ msgstr "Adresse d’écoute"
 
 msgid "IP address for Bandix to listen on. Use 127.0.0.1 for local access or 0.0.0.0 / :: for all interfaces."
 msgstr "Adresse IP d’écoute de Bandix. Utilisez 127.0.0.1 pour un accès local ou 0.0.0.0 / :: pour toutes les interfaces."
+
+msgid "ASN / network organization"
+msgstr "ASN / organisation réseau"
+
+msgid "Country/region + province/city"
+msgstr "Pays/région + province/ville"
+
+msgid "Database build dates"
+msgstr "Dates de création des bases de données"
+
+msgid "Download contents"
+msgstr "Contenu à télécharger"
+
+msgid "Installed data source"
+msgstr "Source des données installées"
+
+msgid "Installed databases"
+msgstr "Bases de données installées"
+
+msgid "Release version"
+msgstr "Version publiée"
+
+msgid "Location and ASN databases work together."
+msgstr "Les bases de localisation et ASN fonctionnent ensemble."
+
+msgid "Database details"
+msgstr "Détails des bases de données"
+
+msgid "Apply directory changes before downloading."
+msgstr "Appliquez les changements de répertoire avant le téléchargement."
+
+msgid "Batch deletion is unavailable. Update the Bandix service."
+msgstr "La suppression groupée est indisponible. Mettez à jour le service Bandix."
+
+#, c-format
+msgid "Delete selected devices (%d)? Their traffic history, hostname bindings, rate limits and quotas will also be removed. Online devices may reappear."
+msgstr "Supprimer les appareils sélectionnés (%d) ? Leur historique de trafic, leurs associations de noms, leurs limites de débit et leurs quotas seront aussi supprimés. Les appareils en ligne peuvent réapparaître."
+
+msgid "Delete selected"
+msgstr "Supprimer la sélection"
+
+#, c-format
+msgid "Deleted: %d; not found: %d; failed: %d."
+msgstr "Supprimés : %d ; introuvables : %d ; échecs : %d."
+
+msgid "Failed to delete devices"
+msgstr "Échec de la suppression des appareils"
+
+msgid "Invalid batch deletion response"
+msgstr "Réponse de suppression groupée invalide"
+
+msgid "Select all"
+msgstr "Tout sélectionner"
+
+msgid "Select device"
+msgstr "Sélectionner un appareil"
+
+msgid "Search this page: protocol, IP, port, location, ASN…"
+msgstr "Rechercher sur cette page : protocole, IP, port, localisation, ASN…"
+
+msgid "Search connections on this page"
+msgstr "Rechercher les connexions sur cette page"
+
+msgid "Matches on this page"
+msgstr "Correspondances sur cette page"
+
+msgid "No matching connections on this page"
+msgstr "Aucune connexion correspondante sur cette page"
