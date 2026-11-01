@@ -175,6 +175,7 @@
     ["cascade-repokeys.css", [["=", "admin-system-admin-repokeys"]]],
     ["cascade-routes.css", [["=", "admin-status-routes"]]],
     ["cascade-startup.css", [["=", "admin-system-startup"]]],
+    ["cascade-statistics.css", [["^", "admin-statistics-graphs"]]],
     ["cascade-status.css", [["^", "admin-status"]]],
     ["cascade-system.css", [["=", "admin-system-system"]]],
     ["cascade-temperature.css", [["=", "admin-status-realtime-temperature"]]],
@@ -280,7 +281,14 @@
             var timer = setTimeout(done, 2500);
             style.rel = "stylesheet";
             style.media = "screen";
-            style.href = mediaBase + "/css/pages/" + filename;
+            // Same cache key as the stylesheets header.ut prints, otherwise a
+            // client-side navigation could reuse a stale copy after an update.
+            var version = (window.L && L.env && L.env.resource_version) || "";
+            style.href =
+              mediaBase +
+              "/css/pages/" +
+              filename +
+              (version ? "?v=" + encodeURIComponent(version) : "");
             style.dataset.protonSpaPerpage = "true";
             style.onload = done;
             style.onerror = done;

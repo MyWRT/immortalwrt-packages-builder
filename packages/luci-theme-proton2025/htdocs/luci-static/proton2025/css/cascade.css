@@ -568,6 +568,37 @@ a:active {
     flex: 0 0 auto;
 }
 
+/* Between the phone layout and ~1100 px the top menu, the search and theme
+   buttons and the "Refreshing" indicator did not fit in one row, so the
+   header pushed the page into horizontal scrolling. Tighter spacing keeps
+   it within the width. */
+@media (min-width: 801px) and (max-width: 1100px) {
+    #menubar-inner {
+        gap: 8px;
+    }
+
+    html:not(.proton-menu-side) #mainmenu .mainmenu.l1>li>a {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    #indicators>* {
+        padding: 6px 8px;
+    }
+}
+
+@media (min-width: 801px) and (max-width: 900px) {
+    html:not(.proton-menu-side) #mainmenu .mainmenu.l1>li>a {
+        padding-left: 7px;
+        padding-right: 7px;
+        font-size: 0.875rem;
+    }
+
+    #indicators>* {
+        font-size: 0.8rem;
+    }
+}
+
 #proton-search-container {
     flex: 0 0 auto;
     display: flex;
@@ -1187,7 +1218,7 @@ html.proton-hostname-logo #menubar-inner .hostname::before {
     transition: max-height 0.2s ease-in-out;
 }
 
-#mainmenu ul:not(.active)>li.selected>ul,
+#mainmenu ul:not(.active)>li.selected:not(.proton-section-collapsed)>ul,
 #mainmenu li.active>ul {
     max-height: 500px;
     transition: max-height 0.4s ease-in-out;
@@ -4310,6 +4341,14 @@ html.proton-tabs-proton #packages .cbi-tabmenu li.active a {
         width: calc(100vw - 24px);
     }
 
+    /* The floating alerts sit above the menu drawer (z-index 2200 vs 999)
+       and covered its first entries while it was open. */
+    body:has(#mainmenu.active) .alert-message.proton-alert-floating {
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .alert-message h4 {
         font-size: 0.9rem;
     }
@@ -5290,7 +5329,7 @@ body.modal-overlay-active #modal_overlay {
         min-width: 0;
     }
 
-    #mainmenu ul:not(.active)>li.selected>ul,
+    #mainmenu ul:not(.active)>li.selected:not(.proton-section-collapsed)>ul,
     #mainmenu li.active>ul {
         max-height: 800px;
         overflow-y: auto;
@@ -5441,6 +5480,17 @@ body.modal-overlay-active #modal_overlay {
 
     button+button, .btn+.btn, .cbi-button+.cbi-button {
         margin-left: 0;
+    }
+
+    /* margin-left is dropped above because flex containers space their
+       buttons with gap. Buttons placed straight into a value field or into
+       a plain wrapper (the service-control rows of https-dns-proxy and pbr
+       use an <output> or a bare <div>) have no gap, so they touched each
+       other and the next row (#76). */
+    .cbi-value-field > :is(button, .btn, .cbi-button),
+    .cbi-value-field > :is(output, span, p) > :is(button, .btn, .cbi-button),
+    .cbi-value-field > div:not([class]):not([style*="flex"]):not([style*="grid"]) > :is(button, .btn, .cbi-button) {
+        margin: 0 6px 6px 0;
     }
 
     .cbi-section-actions>div,
@@ -6511,7 +6561,7 @@ body.modal-overlay-active #modal_overlay {
     }
 
     html.proton-menu-side #mainmenu .mainmenu.l1>li.active>a:has(+ ul)::after,
-    html.proton-menu-side #mainmenu .mainmenu.l1:not(.active)>li.selected>a:has(+ ul)::after {
+    html.proton-menu-side #mainmenu .mainmenu.l1:not(.active)>li.selected:not(.proton-section-collapsed)>a:has(+ ul)::after {
         transform: rotate(90deg);
     }
 
@@ -6537,7 +6587,7 @@ body.modal-overlay-active #modal_overlay {
         transition: max-height 0.2s ease-in-out;
     }
 
-    html.proton-menu-side #mainmenu ul:not(.active)>li.selected>ul,
+    html.proton-menu-side #mainmenu ul:not(.active)>li.selected:not(.proton-section-collapsed)>ul,
     html.proton-menu-side #mainmenu li.active>ul {
         max-height: 1200px;
         transition: max-height 0.4s ease-in-out;
@@ -6547,7 +6597,7 @@ body.modal-overlay-active #modal_overlay {
         max-height: 0;
     }
 
-    html.proton-menu-side #mainmenu ul:not(.active)>li.selected:hover>ul,
+    html.proton-menu-side #mainmenu ul:not(.active)>li.selected:not(.proton-section-collapsed):hover>ul,
     html.proton-menu-side #mainmenu li.active:hover>ul {
         max-height: 1200px;
     }
@@ -6683,7 +6733,7 @@ body.modal-overlay-active #modal_overlay {
     }
 
     html.proton-menu-side.proton-menu-collapsed #mainmenu li>ul,
-    html.proton-menu-side.proton-menu-collapsed #mainmenu ul:not(.active)>li.selected>ul,
+    html.proton-menu-side.proton-menu-collapsed #mainmenu ul:not(.active)>li.selected:not(.proton-section-collapsed)>ul,
     html.proton-menu-side.proton-menu-collapsed #mainmenu li.active>ul,
     html.proton-menu-side.proton-menu-collapsed #mainmenu li.active:hover>ul {
         max-height: 0;
